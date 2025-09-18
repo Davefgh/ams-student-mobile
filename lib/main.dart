@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/student_home_screen.dart';
+import 'screens/login_screen.dart';
 import 'services/notification_service.dart';
 import 'screens/task_letter_screen.dart';
 
@@ -46,7 +47,7 @@ class _StudentAppState extends State<StudentApp> {
         ),
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const StudentHomeScreen(),
+      home: const LoginScreen(),
     );
   }
 }

@@ -10,61 +10,29 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _identifierController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isPasswordVisible = false;
-  bool _isSubmitting = false;
-  static const String _demoUsername = 'stud123';
-  static const String _demoPassword = 'stud123';
+  bool _obscure = true;
+  bool _loading = false;
 
   @override
   void dispose() {
-    _identifierController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  String? _validateIdentifier(String? value) {
-    final trimmed = value?.trim() ?? '';
-    if (trimmed.isEmpty) return 'Please enter student ID or email';
-    // Basic email pattern; if not email, treat as ID (non-empty already checked)
-    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (trimmed.contains('@') && !emailRegex.hasMatch(trimmed)) {
-      return 'Enter a valid email address';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    final text = value ?? '';
-    if (text.isEmpty) return 'Please enter your password';
-    if (text.length < 6) return 'Password must be at least 6 characters';
-    return null;
-  }
-
-  Future<void> _onSubmit() async {
+  Future<void> _submit() async {
     final form = _formKey.currentState;
     if (form == null) return;
     if (!form.validate()) return;
-
-    setState(() => _isSubmitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 800));
+    setState(() => _loading = true);
+    await Future<void>.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
-    final enteredId = _identifierController.text.trim();
-    final enteredPw = _passwordController.text;
-    final isValid = enteredId == _demoUsername && enteredPw == _demoPassword;
-    setState(() => _isSubmitting = false);
-
-    if (isValid) {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid username or password')), 
-      );
-    }
+    setState(() => _loading = false);
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
+    );
   }
 
   @override
@@ -73,74 +41,66 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(Icons.school, size: 72, color: theme.colorScheme.primary),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Student Login',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 24),
+                    Icon(Icons.school, size: 64, color: theme.colorScheme.primary),
+                    const SizedBox(height: 16),
+                    Text('Welcome', textAlign: TextAlign.center, style: theme.textTheme.headlineSmall),
+                    const SizedBox(height: 24),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) return 'Email is required';
+                        final email = value.trim();
+                        final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                        if (!emailRegex.hasMatch(email)) return 'Enter a valid email';
+                        return null;
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        TextFormField(
-                          controller: _identifierController,
-                          textInputAction: TextInputAction.next,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Student ID or Email',
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
-                          validator: _validateIdentifier,
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                          onPressed: () => setState(() => _obscure = !_obscure),
                         ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: !_isPasswordVisible,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              tooltip: _isPasswordVisible ? 'Hide password' : 'Show password',
-                              icon: Icon(
-                                _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-                              ),
-                              onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                            ),
-                          ),
-                          validator: _validatePassword,
-                          onFieldSubmitted: (_) => _onSubmit(),
-                        ),
-                        const SizedBox(height: 20),
-                        FilledButton(
-                          onPressed: _isSubmitting ? null : _onSubmit,
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2.4),
-                                )
-                              : const Text('Login'),
-                        ),
-                      ],
+                      ),
+                      obscureText: _obscure,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Password is required';
+                        if (value.length < 6) return 'Min 6 characters';
+                        return null;
+                      },
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: _loading ? null : _submit,
+                        child: _loading
+                            ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Log in'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
