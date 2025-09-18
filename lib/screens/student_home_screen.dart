@@ -11,14 +11,16 @@ class StudentHomeScreen extends StatefulWidget {
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   int _currentIndex = 0;
   bool _isCheckedIn = false;
-  final List<Map<String, String>> _notifications = <Map<String, String>>[
+  final List<Map<String, dynamic>> _notifications = <Map<String, dynamic>>[
     {
       'title': 'Spill-over: Math Homework',
-      'body': 'Complete Chapter 5 exercises. Due today 5:00 PM.'
+      'body': 'Complete Chapter 5 exercises. Due today 5:00 PM.',
+      'seen': false,
     },
     {
       'title': 'Spill-over: Lab Report',
-      'body': 'Submit Physics 201 lab report. Remember safety notes.'
+      'body': 'Submit Physics 201 lab report. Remember safety notes.',
+      'seen': false,
     },
   ];
 
@@ -34,7 +36,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       payload: (isIn ? 'Attendance' : 'Checkout') + '|' + body,
     );
     setState(() {
-      _notifications.insert(0, {'title': title, 'body': body});
+      _notifications.insert(0, {'title': title, 'body': body, 'seen': false});
     });
   }
 
@@ -63,7 +65,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           }
         },
       ),
-      _NotificationsPage(notifications: _notifications),
+      _NotificationsPage(notifications: _notifications, onOpen: (int index) {
+        setState(() {
+          _notifications[index]['seen'] = true;
+        });
+      }),
     ];
 
     return Scaffold(
@@ -186,9 +192,10 @@ class _AttendPage extends StatelessWidget {
 }
 
 class _NotificationsPage extends StatelessWidget {
-  const _NotificationsPage({required this.notifications});
+  const _NotificationsPage({required this.notifications, required this.onOpen});
 
-  final List<Map<String, String>> notifications;
+  final List<Map<String, dynamic>> notifications;
+  final void Function(int index) onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -214,16 +221,65 @@ class _NotificationsPage extends StatelessWidget {
               : SliverList.builder(
                   itemBuilder: (context, index) {
                     final item = notifications[index];
+                    final bool seen = (item['seen'] as bool?) ?? false;
                     return Card(
+                      color: seen ? null : theme.colorScheme.surfaceVariant,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: theme.colorScheme.primaryContainer,
-                          child: Icon(Icons.notifications, color: theme.colorScheme.onPrimaryContainer),
+                          backgroundColor: seen ? theme.colorScheme.primaryContainer : theme.colorScheme.primary,
+                          child: Icon(
+                            Icons.notifications,
+                            color: seen ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onPrimary,
+                          ),
                         ),
-                        title: Text(item['title'] ?? ''),
-                        subtitle: Text(item['body'] ?? ''),
-                        onTap: () {},
+                        title: Text(item['title'] as String? ?? ''),
+                        subtitle: Text(item['body'] as String? ?? ''),
+                        onTap: () {
+                          onOpen(index);
+                          showDialog(
+                            context: context,
+                            builder: (ctx) {
+                              return Dialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 420),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.markunread_mailbox_outlined),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                item['title'] as String? ?? 'Task',
+                                                style: Theme.of(ctx).textTheme.titleLarge,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(item['body'] as String? ?? 'No details', style: Theme.of(ctx).textTheme.bodyLarge),
+                                        const SizedBox(height: 16),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: FilledButton(
+                                            onPressed: () => Navigator.of(ctx).pop(),
+                                            child: const Text('Got it'),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
                       ),
                     );
                   },
