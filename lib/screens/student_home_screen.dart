@@ -11,7 +11,16 @@ class StudentHomeScreen extends StatefulWidget {
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   int _currentIndex = 0;
   bool _isCheckedIn = false;
-  final List<Map<String, String>> _notifications = <Map<String, String>>[];
+  final List<Map<String, String>> _notifications = <Map<String, String>>[
+    {
+      'title': 'Spill-over: Math Homework',
+      'body': 'Complete Chapter 5 exercises. Due today 5:00 PM.'
+    },
+    {
+      'title': 'Spill-over: Lab Report',
+      'body': 'Submit Physics 201 lab report. Remember safety notes.'
+    },
+  ];
 
   Future<void> _sendAttendanceNotification({required bool isIn}) async {
     final String timestamp = DateTime.now().toLocal().toString();
