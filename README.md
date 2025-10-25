@@ -1,18 +1,6 @@
 
 # 🎓 AMS Student - Attendance Monitoring System
 
-> A modern Flutter mobile application for students to manage their attendance efficiently and seamlessly.
-
-[![Flutter](https://img.shields.io/badge/Flutter-3.8.1-02569B?logo=flutter)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-3.8.1-0175C2?logo=dart)](https://dart.dev)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
-## 📱 Screenshots
-
-| Login | Dashboard | Scanner | Profile |
-|-------|-----------|---------|---------|
-| ![Login](screenshots/login.png) | ![Dashboard](screenshots/dashboard.png) | ![Scanner](screenshots/scanner.png) | ![Profile](screenshots/profile.png) |
-
 ## ✨ Features
 
 ### 🔐 Authentication
