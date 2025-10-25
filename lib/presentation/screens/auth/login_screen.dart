@@ -105,8 +105,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Logo - NO CONTAINER, NO CIRCULAR BACKGROUND
                   Image.asset(
                     'assets/images/ACLCV1.png',
-                    width: 200,
-                    height: 200,
+                    width: 170,
+                    height: 170,
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       return const Icon(
