@@ -123,8 +123,6 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildWelcomeCard(),
-                    const SizedBox(height: 24),
                     _buildStatsCards(),
                     const SizedBox(height: 24),
                     _buildCurrentSubject(),
@@ -196,69 +194,6 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
                     color: Colors.red,
                     shape: BoxShape.circle,
                   ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWelcomeCard() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.waving_hand,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome back!',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                    Text(
-                      'Have a great day of learning',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -423,7 +358,6 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
     final schedule = studentSubject['schedule'];
     final instructor = studentSubject['instructor'];
     final classroom = studentSubject['classroom'];
-    final rate = studentSubject['attendanceRate'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,43 +460,6 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
                 Icons.location_on_outlined,
                 'Classroom',
                 classroom['name'],
-              ),
-              const SizedBox(height: 20),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Attendance Progress',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B7280),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '$rate%',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2563EB),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: LinearProgressIndicator(
-                      value: rate / 100,
-                      backgroundColor: Colors.grey[200],
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
-                      minHeight: 8,
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
