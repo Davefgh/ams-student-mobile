@@ -211,32 +211,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1F2937)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Profile',
-          style: TextStyle(
-            color: Color(0xFF1F2937),
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            SizedBox(
+              width: 35,
+              height: 35,
+              child: Image.asset(
+                'assets/images/ACLCv1.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Profile',
+              style: TextStyle(
+                color: Color(0xFF1F2937),
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit, color: Color(0xFF3B82F6)),
+            icon: const Icon(Icons.edit_rounded, color: Color(0xFF3B82F6)),
             onPressed: _showEditProfileModal,
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
           : RefreshIndicator(
+              color: Color(0xFF3B82F6),
               onRefresh: _loadProfile,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -257,8 +268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 12),
                     
                     _InfoCard(
-                      icon: Icons.email_outlined,
-                      iconColor: const Color(0xFF3B82F6),
+                      icon: Icons.email_rounded,
                       title: 'Email Address',
                       value: _student.email ?? 'Not provided',
                     ),
@@ -277,19 +287,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 12),
                     
                     _InfoCard(
-                      icon: Icons.person_outline,
-                      iconColor: const Color(0xFF10B981),
-                      title: 'First Name',
-                      value: _student.firstname ?? 'Not provided',
-                    ),
-                    
-                    const SizedBox(height: 12),
-                    
-                    _InfoCard(
-                      icon: Icons.person_outline,
-                      iconColor: const Color(0xFF10B981),
-                      title: 'Last Name',
-                      value: _student.lastname ?? 'Not provided',
+                      icon: Icons.person_rounded,
+                      title: 'Full Name',
+                      value: _student.fullName.isNotEmpty ? _student.fullName : 'Not provided',
                     ),
                     
                     const SizedBox(height: 24),
@@ -306,8 +306,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 12),
                     
                     _InfoCard(
-                      icon: Icons.calendar_today_outlined,
-                      iconColor: const Color(0xFF8B5CF6),
+                      icon: Icons.calendar_today_rounded,
                       title: 'Account Created',
                       value: _formatDate(_student.createdAt),
                     ),
@@ -315,8 +314,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 12),
                     
                     _InfoCard(
-                      icon: Icons.update_outlined,
-                      iconColor: const Color(0xFFF59E0B),
+                      icon: Icons.update_rounded,
                       title: 'Last Updated',
                       value: _formatDate(_student.updatedAt),
                     ),
@@ -328,7 +326,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: _showEditProfileModal,
-                        icon: const Icon(Icons.edit, size: 20),
+                        icon: const Icon(Icons.edit_rounded, size: 20),
                         label: const Text(
                           'Edit Profile',
                           style: TextStyle(
@@ -354,7 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: _showLogoutDialog,
-                        icon: const Icon(Icons.logout, size: 20),
+                        icon: const Icon(Icons.logout_rounded, size: 20),
                         label: const Text(
                           'Logout',
                           style: TextStyle(
@@ -482,13 +480,11 @@ class _ProfileHeader extends StatelessWidget {
 // Info Card Widget
 class _InfoCard extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
   final String title;
   final String value;
 
   const _InfoCard({
     required this.icon,
-    required this.iconColor,
     required this.title,
     required this.value,
   });
@@ -503,7 +499,7 @@ class _InfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -515,12 +511,12 @@ class _InfoCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: const Color(0xFFF5F5F5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
-              color: iconColor,
+              color: Colors.black,
               size: 24,
             ),
           ),
@@ -609,7 +605,7 @@ class _EditProfileModalState extends State<_EditProfileModal> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile updated successfully!'),
-            backgroundColor: Color(0xFF10B981),
+            backgroundColor: Colors.black,
           ),
         );
       }
@@ -618,7 +614,7 @@ class _EditProfileModalState extends State<_EditProfileModal> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update profile: $e'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: Colors.black,
           ),
         );
       }
@@ -672,12 +668,16 @@ class _EditProfileModalState extends State<_EditProfileModal> {
                 controller: _firstnameController,
                 decoration: InputDecoration(
                   labelText: 'First Name',
-                  prefixIcon: const Icon(Icons.person_outline),
+                  prefixIcon: const Icon(Icons.person_rounded),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: const Color(0xFFF5F5F5),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -693,12 +693,16 @@ class _EditProfileModalState extends State<_EditProfileModal> {
                 controller: _lastnameController,
                 decoration: InputDecoration(
                   labelText: 'Last Name',
-                  prefixIcon: const Icon(Icons.person_outline),
+                  prefixIcon: const Icon(Icons.person_rounded),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: const Color(0xFFF5F5F5),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -715,18 +719,22 @@ class _EditProfileModalState extends State<_EditProfileModal> {
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   labelText: 'Email Address',
-                  prefixIcon: const Icon(Icons.email_outlined),
+                  prefixIcon: const Icon(Icons.email_rounded),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: const Color(0xFFF5F5F5),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter your email';
                   }
-                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                  if (!RegExp(r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(value)) {
                     return 'Please enter a valid email';
                   }
                   return null;
@@ -740,7 +748,7 @@ class _EditProfileModalState extends State<_EditProfileModal> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _handleSave,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
+                    backgroundColor: Colors.black,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
