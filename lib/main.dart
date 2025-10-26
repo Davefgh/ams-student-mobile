@@ -1,80 +1,80 @@
 import 'package:flutter/material.dart';
-import 'presentation/screens/auth/login_screen.dart';
+import 'routes/app_router.dart';
 
 void main() {
-  runApp(const AMSStudentApp());
+  runApp(const MyApp());
 }
 
-class AMSStudentApp extends StatelessWidget {
-  const AMSStudentApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AMS Student',
+      title: 'Attendance Monitoring System',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E3A8A),
-          primary: const Color(0xFF1E3A8A),
+          seedColor: const Color(0xFF2563EB),
+          brightness: Brightness.light,
         ),
         useMaterial3: true,
-        fontFamily: 'Roboto',
-        
-        // Input decoration theme
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+        ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.grey.shade100,
+          fillColor: const Color(0xFFEFF6FF),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
-              color: Color(0xFF1E3A8A),
+              color: Color(0xFF2563EB),
               width: 2,
             ),
           ),
           errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Colors.red),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(
+              color: Colors.red,
+              width: 1,
+            ),
           ),
           focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
               color: Colors.red,
               width: 2,
             ),
           ),
         ),
-        
-        // Elevated button theme
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1E3A8A),
             foregroundColor: Colors.white,
+            backgroundColor: const Color(0xFF2563EB),
             elevation: 0,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
         ),
-        
-        // Text button theme
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFF1E3A8A),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            foregroundColor: const Color(0xFF2563EB),
           ),
         ),
       ),
-      home: const LoginScreen(),
+      initialRoute: AppRouter.login,
+      onGenerateRoute: AppRouter.generateRoute,
     );
   }
 }

@@ -1,0 +1,70 @@
+Folder PATH listing for volume New Volume
+Volume serial number is 000000A5 CA0A:F964
+D:\AMS_STUDENT\LIB
+|   main.dart
+|   
++---core
+|   +---constants
+|   |       app_color.dart
+|   |       app_routes.dart
+|   |       app_strings.dart
+|   |       
+|   +---theme
+|   |       app_theme.dart
+|   |       
+|   \---utils
+|           date_formatter.dart
+|           validators.dart
+|           
++---data
+|   +---models
+|   |       attendance.dart
+|   |       qr_data.dart
+|   |       student.dart
+|   |       subject.dart
+|   |       
+|   +---repositories
+|   |       attendance_repository.dart
+|   |       auth_repository.dart
+|   |       student_repository.dart
+|   |       
+|   \---services
+|           api_service.dart
+|           notification_service.dart
+|           storage_service.dart
+|           
++---presentation
+|   +---screens
+|   |   +---auth
+|   |   |       login_screen.dart
+|   |   |       
+|   |   +---dashboard
+|   |   |   |   dashboard_screen.dart
+|   |   |   |   
+|   |   |   \---widgets
+|   |   |           subject_card.dart
+|   |   |           
+|   |   +---profile
+|   |   |   |   profile_screen.dart
+|   |   |   |   
+|   |   |   \---widgets
+|   |   |           edit_profile_modal.dart
+|   |   |           info_card.dart
+|   |   |           profile_header.dart
+|   |   |           
+|   |   \---scanner
+|   |       |   scanner_screen.dart
+|   |       |   
+|   |       \---widgets
+|   |               scanner_frame.dart
+|   |               scanner_result.dart
+|   |               
+|   \---widgets
+|           app_logo.dart
+|           custom_button.dart
+|           custom_text_field.dart
+|           loading_indicator.dart
+|           
+\---routes
+        app_router.dart
+        
