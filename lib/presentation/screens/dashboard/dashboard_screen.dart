@@ -59,29 +59,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 33, vertical: 3),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.black : Colors.transparent,
+          color: isSelected ? const Color(0xFF3B82F6) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
               color: isSelected ? Colors.white : Colors.grey[400],
               size: 24,
             ),
-            if (isSelected) ...[
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey[400],
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -439,10 +438,10 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
+            color: const Color(0xFFF5F5F5),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, size: 18, color: const Color(0xFF2563EB)),
+          child: Icon(icon, size: 18, color: Colors.black),
         ),
         const SizedBox(width: 12),
         Expanded(
