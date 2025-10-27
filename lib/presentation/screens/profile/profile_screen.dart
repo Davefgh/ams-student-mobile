@@ -208,177 +208,221 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            SizedBox(
-              width: 35,
-              height: 35,
-              child: Image.asset(
-                'assets/images/ACLCv1.png',
-                fit: BoxFit.contain,
+      body: Column(
+        children: [
+          // Header matching dashboard style
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF1E3A8A),
+                  Color(0xFF3B82F6),
+                  Color(0xFF60A5FA),
+                ],
               ),
             ),
-            const SizedBox(width: 12),
-            const Text(
-              'Profile',
-              style: TextStyle(
-                color: Color(0xFF1F2937),
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_rounded, color: Color(0xFF3B82F6)),
-            onPressed: _showEditProfileModal,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
-          : RefreshIndicator(
-              color: Color(0xFF3B82F6),
-              onRefresh: _loadProfile,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+            child: SafeArea(
+              bottom: false,
+              child: Container(
                 padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.white.withOpacity(0.2)),
+                  ),
+                ),
+                child: Row(
                   children: [
-                    // Profile Header
-                    _ProfileHeader(student: _student),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Contact Information Section
-                    const Text(
-                      'Contact Information',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    _InfoCard(
-                      icon: Icons.email_rounded,
-                      title: 'Email Address',
-                      value: _student.email ?? 'Not provided',
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Personal Details Section
-                    const Text(
-                      'Personal Details',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    _InfoCard(
-                      icon: Icons.person_rounded,
-                      title: 'Full Name',
-                      value: _student.fullName.isNotEmpty ? _student.fullName : 'Not provided',
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Account Activity Section
-                    const Text(
-                      'Account Activity',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    _InfoCard(
-                      icon: Icons.calendar_today_rounded,
-                      title: 'Account Created',
-                      value: _formatDate(_student.createdAt),
-                    ),
-                    
-                    const SizedBox(height: 12),
-                    
-                    _InfoCard(
-                      icon: Icons.update_rounded,
-                      title: 'Last Updated',
-                      value: _formatDate(_student.updatedAt),
-                    ),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // Action Buttons
                     SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _showEditProfileModal,
-                        icon: const Icon(Icons.edit_rounded, size: 20),
-                        label: const Text(
-                          'Edit Profile',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B82F6),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
+                      width: 45,
+                      height: 45,
+                      child: Image.asset(
+                        'assets/images/ACLCv1.png',
+                        fit: BoxFit.contain,
                       ),
                     ),
-                    
-                    const SizedBox(height: 12),
-                    
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _showLogoutDialog,
-                        icon: const Icon(Icons.logout_rounded, size: 20),
-                        label: const Text(
-                          'Logout',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Profile',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFEF4444),
-                          side: const BorderSide(
-                            color: Color(0xFFEF4444),
-                            width: 2,
+                          Text(
+                            'Manage your account',
+                            style: TextStyle(
+                              color: Color(0xFFBFDBFE),
+                              fontSize: 12,
+                            ),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                        ],
                       ),
                     ),
-                    
-                    const SizedBox(height: 24),
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, color: Colors.white),
+                      onPressed: _showEditProfileModal,
+                    ),
                   ],
                 ),
               ),
             ),
+          ),
+          // Body content
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF3B82F6),
+                    ),
+                  )
+                : RefreshIndicator(
+                    color: const Color(0xFF3B82F6),
+                    onRefresh: _loadProfile,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Profile Header
+                          _ProfileHeader(student: _student),
+                          
+                          const SizedBox(height: 24),
+                          
+                          // Contact Information Section
+                          const Text(
+                            'Contact Information',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          
+                          _InfoCard(
+                            icon: Icons.email_rounded,
+                            title: 'Email Address',
+                            value: _student.email ?? 'Not provided',
+                          ),
+                          
+                          const SizedBox(height: 24),
+                          
+                          // Personal Details Section
+                          const Text(
+                            'Personal Details',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          
+                          _InfoCard(
+                            icon: Icons.person_rounded,
+                            title: 'Full Name',
+                            value: _student.fullName.isNotEmpty ? _student.fullName : 'Not provided',
+                          ),
+                          
+                          const SizedBox(height: 24),
+                          
+                          // Account Activity Section
+                          const Text(
+                            'Account Activity',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          
+                          _InfoCard(
+                            icon: Icons.calendar_today_rounded,
+                            title: 'Account Created',
+                            value: _formatDate(_student.createdAt),
+                          ),
+                          
+                          const SizedBox(height: 12),
+                          
+                          _InfoCard(
+                            icon: Icons.update_rounded,
+                            title: 'Last Updated',
+                            value: _formatDate(_student.updatedAt),
+                          ),
+                          
+                          const SizedBox(height: 32),
+                          
+                          // Action Buttons
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _showEditProfileModal,
+                              icon: const Icon(Icons.edit_rounded, size: 20),
+                              label: const Text(
+                                'Edit Profile',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF3B82F6),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 12),
+                          
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _showLogoutDialog,
+                              icon: const Icon(Icons.logout_rounded, size: 20),
+                              label: const Text(
+                                'Logout',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFFEF4444),
+                                side: const BorderSide(
+                                  color: Color(0xFFEF4444),
+                                  width: 2,
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -605,7 +649,7 @@ class _EditProfileModalState extends State<_EditProfileModal> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile updated successfully!'),
-            backgroundColor: Colors.black,
+            backgroundColor: Color(0xFF10B981),
           ),
         );
       }
@@ -614,7 +658,7 @@ class _EditProfileModalState extends State<_EditProfileModal> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update profile: $e'),
-            backgroundColor: Colors.black,
+            backgroundColor: const Color(0xFFEF4444),
           ),
         );
       }
@@ -748,7 +792,7 @@ class _EditProfileModalState extends State<_EditProfileModal> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _handleSave,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: const Color(0xFF3B82F6),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
