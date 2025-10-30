@@ -1,71 +1,10 @@
-// lib/presentation/screens/profile/profile_screen.dart
-
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../data/repositories/student_repository.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../routes/app_router.dart';
 
-// Student Model
-class Student {
-  final int id;
-  final String? firstname;
-  final String? lastname;
-  final String? email;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  Student({
-    required this.id,
-    this.firstname,
-    this.lastname,
-    this.email,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  String get fullName => '${firstname ?? ''} ${lastname ?? ''}'.trim();
-  String get initials => '${firstname?[0] ?? ''}${lastname?[0] ?? ''}'.toUpperCase();
-
-  factory Student.fromJson(Map<String, dynamic> json) {
-    return Student(
-      id: json['id'] as int,
-      firstname: json['firstname'] as String?,
-      lastname: json['lastname'] as String?,
-      email: json['email'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'firstname': firstname,
-      'lastname': lastname,
-      'email': email,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
-
-  Student copyWith({
-    int? id,
-    String? firstname,
-    String? lastname,
-    String? email,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) {
-    return Student(
-      id: id ?? this.id,
-      firstname: firstname ?? this.firstname,
-      lastname: lastname ?? this.lastname,
-      email: email ?? this.email,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-}
-
-// Main Profile Screen
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -74,17 +13,10 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _isLoading = false;
-  
-  // Mock data - replace with actual API call
-  Student _student = Student(
-    id: 2023001234,
-    firstname: 'Maria',
-    lastname: 'Santos',
-    email: 'maria.santos@student.edu.ph',
-    createdAt: DateTime.parse('2024-01-15T08:30:00Z'),
-    updatedAt: DateTime.parse('2024-10-20T14:45:00Z'),
-  );
+  bool _isLoading = true;
+  Map<String, dynamic>? _profileData;
+  final _studentRepository = StudentRepository();
+  final _authRepository = AuthRepository();
 
   @override
   void initState() {
@@ -96,330 +28,433 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = true);
     
     try {
-      // TODO: Replace with actual API call
-      // final response = await StudentRepository().getProfile();
-      // setState(() => _student = response);
+      final response = await _studentRepository.getProfile();
       
-      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) {
+        if (response['success'] == true && response['data'] != null) {
+          setState(() {
+            _profileData = response['data'];
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+          _showError(response['error'] ?? 'Failed to load profile');
+        }
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load profile: $e'),
-            backgroundColor: const Color(0xFFEF4444),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
         setState(() => _isLoading = false);
+        _showError('Error loading profile: $e');
       }
     }
   }
 
-  Future<void> _handleUpdateProfile(String firstname, String lastname, String email) async {
-    // TODO: Replace with actual API call
-    // await StudentRepository().updateProfile(firstname, lastname, email);
-    
-    await Future.delayed(const Duration(seconds: 1));
-    
-    setState(() {
-      _student = _student.copyWith(
-        firstname: firstname,
-        lastname: lastname,
-        email: email,
-        updatedAt: DateTime.now(),
-      );
-    });
-  }
-
   void _showEditProfileModal() {
-    showModalBottomSheet(
+    if (_profileData == null) return;
+    
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _EditProfileModal(
-        student: _student,
+      barrierDismissible: true,
+      builder: (context) => _EditProfileDialog(
+        profileData: _profileData!,
         onSave: _handleUpdateProfile,
       ),
     );
   }
 
-  String _formatDate(DateTime date) {
-    return DateFormat('MMM dd, yyyy • hh:mm a').format(date);
+  Future<void> _handleUpdateProfile(String email) async {
+    try {
+      final studentProfile = _profileData?['studentProfile'];
+      final studentId = studentProfile?['id'];
+      
+      if (studentId == null) {
+        throw Exception('Student ID not found');
+      }
+
+      final response = await _studentRepository.updateProfile(
+        studentId: studentId,
+        email: email,
+      );
+
+      if (response['success'] == true) {
+        // Reload profile to get updated data
+        await _loadProfile();
+        
+        if (mounted) {
+          _showSuccessModal();
+        }
+      } else {
+        throw Exception(response['error'] ?? 'Failed to update profile');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('Failed to update profile: $e');
+      }
+    }
   }
 
-  void _showLogoutDialog() {
+  void _showSuccessModal() {
     showDialog(
       context: context,
+      barrierDismissible: false,
+      builder: (context) => _ProfileUpdatedDialog(profileData: _profileData!),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return 'N/A';
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('MMM dd, yyyy').format(date);
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  String _getInitials() {
+    final username = _profileData?['username'] ?? '';
+    if (username.isEmpty) return 'N';
+    if (username.length == 1) return username.toUpperCase();
+    return username.substring(0, 2).toUpperCase();
+  }
+
+  Future<void> _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Logout',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1F2937),
-          ),
-        ),
-        content: const Text(
-          'Are you sure you want to logout?',
-          style: TextStyle(
-            color: Color(0xFF6B7280),
-          ),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                color: Color(0xFF6B7280),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // TODO: Implement logout
-              // AuthRepository().logout();
-              // Navigator.pushReplacementNamed(context, AppRoutes.login);
-            },
+            onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
             ),
-            child: const Text(
-              'Logout',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
+            child: const Text('Logout'),
           ),
         ],
       ),
     );
+
+    if (confirmed == true) {
+      await _authRepository.logout();
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRouter.login,
+          (route) => false,
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: const Color(0xFFF3F4F6),
       body: Column(
         children: [
-          // Header matching dashboard style
+          // Header with gradient
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF1E3A8A),
+                  Color(0xFF1E40AF),
                   Color(0xFF3B82F6),
-                  Color(0xFF60A5FA),
                 ],
               ),
             ),
             child: SafeArea(
               bottom: false,
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  border: Border(
-                    bottom: BorderSide(color: Colors.white.withOpacity(0.2)),
-                  ),
-                ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
+                    // Logo without white background
                     SizedBox(
-                      width: 45,
-                      height: 45,
+                      width: 40,
+                      height: 40,
                       child: Image.asset(
                         'assets/images/ACLCv1.png',
                         fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.school,
+                            color: Colors.white,
+                            size: 30,
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Profile',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Manage your account',
-                            style: TextStyle(
-                              color: Color(0xFFBFDBFE),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                    const Text(
+                      'Profile',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.edit_rounded, color: Colors.white),
-                      onPressed: _showEditProfileModal,
+                      icon: const Icon(Icons.logout, color: Colors.white),
+                      onPressed: _handleLogout,
+                      tooltip: 'Logout',
                     ),
                   ],
                 ),
               ),
             ),
           ),
-          // Body content
+          
+          // Body
           Expanded(
             child: _isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF3B82F6),
-                    ),
+                    child: CircularProgressIndicator(),
                   )
-                : RefreshIndicator(
-                    color: const Color(0xFF3B82F6),
-                    onRefresh: _loadProfile,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Profile Header
-                          _ProfileHeader(student: _student),
-                          
-                          const SizedBox(height: 24),
-                          
-                          // Contact Information Section
-                          const Text(
-                            'Contact Information',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1F2937),
+                : _profileData == null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Colors.grey,
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          
-                          _InfoCard(
-                            icon: Icons.email_rounded,
-                            title: 'Email Address',
-                            value: _student.email ?? 'Not provided',
-                          ),
-                          
-                          const SizedBox(height: 24),
-                          
-                          // Personal Details Section
-                          const Text(
-                            'Personal Details',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1F2937),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          
-                          _InfoCard(
-                            icon: Icons.person_rounded,
-                            title: 'Full Name',
-                            value: _student.fullName.isNotEmpty ? _student.fullName : 'Not provided',
-                          ),
-                          
-                          const SizedBox(height: 24),
-                          
-                          // Account Activity Section
-                          const Text(
-                            'Account Activity',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1F2937),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          
-                          _InfoCard(
-                            icon: Icons.calendar_today_rounded,
-                            title: 'Account Created',
-                            value: _formatDate(_student.createdAt),
-                          ),
-                          
-                          const SizedBox(height: 12),
-                          
-                          _InfoCard(
-                            icon: Icons.update_rounded,
-                            title: 'Last Updated',
-                            value: _formatDate(_student.updatedAt),
-                          ),
-                          
-                          const SizedBox(height: 32),
-                          
-                          // Action Buttons
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: _showEditProfileModal,
-                              icon: const Icon(Icons.edit_rounded, size: 20),
-                              label: const Text(
-                                'Edit Profile',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF3B82F6),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Failed to load profile',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey,
                               ),
                             ),
-                          ),
-                          
-                          const SizedBox(height: 12),
-                          
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: _showLogoutDialog,
-                              icon: const Icon(Icons.logout_rounded, size: 20),
-                              label: const Text(
-                                'Logout',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFFEF4444),
-                                side: const BorderSide(
-                                  color: Color(0xFFEF4444),
-                                  width: 2,
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _loadProfile,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry'),
                             ),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadProfile,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              // Profile Card
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color(0xFF1E40AF),
+                                      Color(0xFF3B82F6),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF3B82F6).withOpacity(0.3),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    // Edit button
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                          onPressed: _showEditProfileModal,
+                                        ),
+                                      ],
+                                    ),
+                                    
+                                    // Avatar
+                                    Container(
+                                      width: 100,
+                                      height: 100,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          _getInitials(),
+                                          style: const TextStyle(
+                                            fontSize: 40,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF1E40AF),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    
+                                    const SizedBox(height: 16),
+                                    
+                                    // Username
+                                    Text(
+                                      _profileData?['username'] ?? 'No Name',
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    
+                                    const SizedBox(height: 8),
+                                    
+                                    // Email
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(
+                                          Icons.email,
+                                          color: Colors.white70,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          _profileData?['email'] ?? 'No email',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    
+                                    const SizedBox(height: 12),
+                                    
+                                    // Student Badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        _profileData?['role'] ?? 'Student',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              
+                              const SizedBox(height: 24),
+                              
+                              // Information Section
+                              const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'INFORMATION',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
+                              
+                              const SizedBox(height: 12),
+                              
+                              // Username
+                              _InfoItem(
+                                icon: Icons.person,
+                                label: 'Username',
+                                value: _profileData?['username'] ?? 'N/A',
+                              ),
+                              
+                              // Email
+                              _InfoItem(
+                                icon: Icons.email,
+                                label: 'Email',
+                                value: _profileData?['email'] ?? 'N/A',
+                              ),
+                              
+                              // Student ID
+                              _InfoItem(
+                                icon: Icons.badge,
+                                label: 'Student ID',
+                                value: '#${_profileData?['studentProfile']?['id'] ?? 'N/A'}',
+                              ),
+                              
+                              // Section
+                              _InfoItem(
+                                icon: Icons.class_,
+                                label: 'Section',
+                                value: _profileData?['studentProfile']?['sectionName'] ?? 'N/A',
+                              ),
+                              
+                              // Course
+                              _InfoItem(
+                                icon: Icons.school,
+                                label: 'Course',
+                                value: _profileData?['studentProfile']?['courseName'] ?? 'N/A',
+                              ),
+                              
+                              // Regular Status
+                              _InfoItem(
+                                icon: Icons.verified_user,
+                                label: 'Status',
+                                value: (_profileData?['studentProfile']?['isRegular'] == true) 
+                                    ? 'Regular' 
+                                    : 'Irregular',
+                              ),
+                              
+                              // Member Since
+                              _InfoItem(
+                                icon: Icons.calendar_today,
+                                label: 'Member Since',
+                                value: _formatDate(_profileData?['createdAt']),
+                              ),
+                            ],
                           ),
-                          
-                          const SizedBox(height: 24),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
           ),
         ],
       ),
@@ -427,124 +462,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// Profile Header Widget
-class _ProfileHeader extends StatelessWidget {
-  final Student student;
-
-  const _ProfileHeader({required this.student});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF3B82F6),
-            Color(0xFF2563EB),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF3B82F6).withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          // Avatar
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                student.initials,
-                style: const TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF3B82F6),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Name
-          Text(
-            student.fullName,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          // ID Badge
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'Student ID: ${student.id}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Info Card Widget
-class _InfoCard extends StatelessWidget {
+// Info Item Widget
+class _InfoItem extends StatelessWidget {
   final IconData icon;
-  final String title;
+  final String label;
   final String value;
 
-  const _InfoCard({
+  const _InfoItem({
     required this.icon,
-    required this.title,
+    required this.label,
     required this.value,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
@@ -552,16 +493,16 @@ class _InfoCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F5),
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
               color: Colors.black,
-              size: 24,
+              size: 20,
             ),
           ),
           const SizedBox(width: 16),
@@ -570,10 +511,10 @@ class _InfoCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  label,
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF6B7280),
+                    color: Colors.grey,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -582,8 +523,8 @@ class _InfoCard extends StatelessWidget {
                   value,
                   style: const TextStyle(
                     fontSize: 16,
-                    color: Color(0xFF1F2937),
                     fontWeight: FontWeight.w600,
+                    color: Colors.black87,
                   ),
                 ),
               ],
@@ -595,23 +536,21 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-// Edit Profile Modal Widget
-class _EditProfileModal extends StatefulWidget {
-  final Student student;
-  final Function(String firstname, String lastname, String email) onSave;
+// Edit Profile Dialog (Curved like screenshot)
+class _EditProfileDialog extends StatefulWidget {
+  final Map<String, dynamic> profileData;
+  final Function(String email) onSave;
 
-  const _EditProfileModal({
-    required this.student,
+  const _EditProfileDialog({
+    required this.profileData,
     required this.onSave,
   });
 
   @override
-  State<_EditProfileModal> createState() => _EditProfileModalState();
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
 }
 
-class _EditProfileModalState extends State<_EditProfileModal> {
-  late TextEditingController _firstnameController;
-  late TextEditingController _lastnameController;
+class _EditProfileDialogState extends State<_EditProfileDialog> {
   late TextEditingController _emailController;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -619,15 +558,13 @@ class _EditProfileModalState extends State<_EditProfileModal> {
   @override
   void initState() {
     super.initState();
-    _firstnameController = TextEditingController(text: widget.student.firstname);
-    _lastnameController = TextEditingController(text: widget.student.lastname);
-    _emailController = TextEditingController(text: widget.student.email);
+    _emailController = TextEditingController(
+      text: widget.profileData['studentProfile']?['email'] ?? widget.profileData['email']
+    );
   }
 
   @override
   void dispose() {
-    _firstnameController.dispose();
-    _lastnameController.dispose();
     _emailController.dispose();
     super.dispose();
   }
@@ -638,26 +575,16 @@ class _EditProfileModalState extends State<_EditProfileModal> {
     setState(() => _isLoading = true);
 
     try {
-      await widget.onSave(
-        _firstnameController.text.trim(),
-        _lastnameController.text.trim(),
-        _emailController.text.trim(),
-      );
+      await widget.onSave(_emailController.text.trim());
       
       if (mounted) {
-        Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully!'),
-            backgroundColor: Color(0xFF10B981),
-          ),
-        );
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update profile: $e'),
+            content: Text('Error: $e'),
             backgroundColor: const Color(0xFFEF4444),
           ),
         );
@@ -671,157 +598,323 @@ class _EditProfileModalState extends State<_EditProfileModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.white,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Edit Profile',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo Icon
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
                     ),
+                    shape: BoxShape.circle,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // First Name Field
-              TextFormField(
-                controller: _firstnameController,
-                decoration: InputDecoration(
-                  labelText: 'First Name',
-                  prefixIcon: const Icon(Icons.person_rounded),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+                  child: const Icon(
+                    Icons.school,
+                    color: Colors.white,
+                    size: 35,
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your first name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Last Name Field
-              TextFormField(
-                controller: _lastnameController,
-                decoration: InputDecoration(
-                  labelText: 'Last Name',
-                  prefixIcon: const Icon(Icons.person_rounded),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+                
+                const SizedBox(height: 20),
+                
+                // Title
+                const Text(
+                  'Edit Profile',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your last name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Email Field
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: 'Email Address',
-                  prefixIcon: const Icon(Icons.email_rounded),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+                
+                const SizedBox(height: 8),
+                
+                const Text(
+                  'Update your personal information',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!RegExp(r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(value)) {
-                    return 'Please enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
+                
+                const SizedBox(height: 28),
 
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleSave,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
+                // Email Field (Only editable field based on your API)
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Email Address',
+                    border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 0,
+                    filled: true,
+                    fillColor: const Color(0xFFF9FAFB),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Save Changes',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!RegExp(r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(value)) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
                 ),
-              ),
-            ],
+                
+                const SizedBox(height: 28),
+
+                // Save Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleSave,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Save Changes',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+
+                // Cancel Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton(
+                    onPressed: _isLoading ? null : () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF3B82F6)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF3B82F6),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// Profile Updated Success Dialog
+class _ProfileUpdatedDialog extends StatelessWidget {
+  final Map<String, dynamic> profileData;
+
+  const _ProfileUpdatedDialog({required this.profileData});
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return 'N/A';
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('MMM dd, yyyy').format(date);
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1E40AF),
+              Color(0xFF3B82F6),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Success Icon
+            Container(
+              width: 80,
+              height: 80,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.school,
+                color: Color(0xFF3B82F6),
+                size: 40,
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Title
+            const Text(
+              'Profile Updated!',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Message
+            const Text(
+              'Your profile has been successfully updated',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Info Container
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  _DetailRow(
+                    label: 'Username',
+                    value: profileData['username'] ?? 'N/A',
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
+                    label: 'Email',
+                    value: profileData['email'] ?? 'N/A',
+                  ),
+                  const Divider(color: Colors.white30, height: 32),
+                  _DetailRow(
+                    label: 'Created At',
+                    value: _formatDate(profileData['createdAt']),
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
+                    label: 'Updated At',
+                    value: _formatDate(profileData['updatedAt']),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 28),
+            
+            // Done Button
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF3B82F6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
+          ),
+        ),
+        Flexible(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
     );
   }
 }

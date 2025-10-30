@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../routes/app_router.dart';
+import '../../../data/repositories/auth_repository.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authRepository = AuthRepository();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
@@ -33,19 +35,33 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // TODO: Replace with your actual API call to .NET backend
-      await Future.delayed(const Duration(seconds: 2));
+      final response = await _authRepository.login(
+        _usernameController.text.trim(),
+        _passwordController.text,
+      );
       
-      final loginSuccess = true;
+      if (!mounted) return;
       
-      if (loginSuccess && mounted) {
+      if (response.success) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.message),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        
+        // Navigate to dashboard
         Navigator.pushReplacementNamed(context, AppRouter.dashboard);
-      } else if (mounted) {
-        _showErrorSnackBar('Invalid username or password');
+      } else {
+        _showErrorSnackBar(response.message);
       }
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar('Login failed. Please try again.');
+        // Show actual error for debugging
+        _showErrorSnackBar('Error: ${e.toString()}');
+        print('Login error: $e');
       }
     } finally {
       if (mounted) {
