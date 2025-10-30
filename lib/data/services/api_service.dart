@@ -132,8 +132,8 @@ class ApiService {
     }
   }
 
-  /// Update student profile
-  Future<Map<String, dynamic>> updateStudentProfile({
+  /// Update student email only
+  Future<Map<String, dynamic>> updateStudentEmail({
     required int studentId,
     required String email,
   }) async {
@@ -148,7 +148,7 @@ class ApiService {
       }
 
       final url = Uri.parse('$baseUrl/api/students/$studentId');
-      print('🌐 Updating student profile at: $url');
+      print('🌐 Updating student email at: $url');
       
       final updateData = {
         'email': email,
@@ -173,19 +173,24 @@ class ApiService {
         final data = json.decode(response.body);
         return {
           'success': true,
-          'message': 'Profile updated successfully',
+          'message': 'Email updated successfully',
           'data': data,
         };
       } else if (response.statusCode == 400) {
         final errorData = json.decode(response.body);
         return {
           'success': false,
-          'error': errorData['message'] ?? 'Invalid data',
+          'error': errorData['message'] ?? 'Invalid email',
         };
       } else if (response.statusCode == 401) {
         return {
           'success': false,
           'error': 'Session expired. Please login again.',
+        };
+      } else if (response.statusCode == 403) {
+        return {
+          'success': false,
+          'error': 'You do not have permission to update your email.',
         };
       } else if (response.statusCode == 404) {
         return {
@@ -195,16 +200,17 @@ class ApiService {
       } else {
         return {
           'success': false,
-          'error': 'Failed to update profile: ${response.statusCode}',
+          'error': 'Failed to update email: ${response.statusCode}',
         };
       }
     } catch (e) {
-      print('💥 Error in updateStudentProfile: $e');
+      print('💥 Error in updateStudentEmail: $e');
       return {
         'success': false,
         'error': 'Error: $e',
       };
     }
   }
+
 }
 

@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../data/repositories/student_repository.dart';
+import '../../../data/services/api_service.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../routes/app_router.dart';
 
@@ -15,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _profileData;
-  final _studentRepository = StudentRepository();
+  final _apiService = ApiService();
   final _authRepository = AuthRepository();
 
   @override
@@ -28,7 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = true);
     
     try {
-      final response = await _studentRepository.getProfile();
+      final response = await _apiService.getStudentProfile();
       
       if (mounted) {
         if (response['success'] == true && response['data'] != null) {
@@ -49,20 +49,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showEditProfileModal() {
+  void _showEditEmailModal() {
     if (_profileData == null) return;
     
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => _EditProfileDialog(
-        profileData: _profileData!,
-        onSave: _handleUpdateProfile,
+      builder: (context) => _EditEmailDialog(
+        currentEmail: _profileData?['studentProfile']?['email'] ?? _profileData?['email'] ?? '',
+        onSave: _handleUpdateEmail,
       ),
     );
   }
 
-  Future<void> _handleUpdateProfile(String email) async {
+  Future<void> _handleUpdateEmail(String email) async {
     try {
       final studentProfile = _profileData?['studentProfile'];
       final studentId = studentProfile?['id'];
@@ -71,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         throw Exception('Student ID not found');
       }
 
-      final response = await _studentRepository.updateProfile(
+      final response = await _apiService.updateStudentEmail(
         studentId: studentId,
         email: email,
       );
@@ -81,24 +81,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await _loadProfile();
         
         if (mounted) {
-          _showSuccessModal();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email updated successfully!'),
+              backgroundColor: Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       } else {
-        throw Exception(response['error'] ?? 'Failed to update profile');
+        throw Exception(response['error'] ?? 'Failed to update email');
       }
     } catch (e) {
       if (mounted) {
-        _showError('Failed to update profile: $e');
+        _showError('Failed to update email: $e');
       }
     }
-  }
-
-  void _showSuccessModal() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _ProfileUpdatedDialog(profileData: _profileData!),
-    );
   }
 
   void _showError(String message) {
@@ -288,7 +286,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 child: Column(
                                   children: [
-                                    // Edit button
+                                    // Edit Email button
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
@@ -298,7 +296,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             color: Colors.white,
                                             size: 20,
                                           ),
-                                          onPressed: _showEditProfileModal,
+                                          onPressed: _showEditEmailModal,
+                                          tooltip: 'Edit Email',
                                         ),
                                       ],
                                     ),
@@ -412,7 +411,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _InfoItem(
                                 icon: Icons.email,
                                 label: 'Email',
-                                value: _profileData?['email'] ?? 'N/A',
+                                value: _profileData?['studentProfile']?['email'] ?? _profileData?['email'] ?? 'N/A',
                               ),
                               
                               // Student ID
@@ -536,21 +535,21 @@ class _InfoItem extends StatelessWidget {
   }
 }
 
-// Edit Profile Dialog (Curved like screenshot)
-class _EditProfileDialog extends StatefulWidget {
-  final Map<String, dynamic> profileData;
+// Edit Email Dialog
+class _EditEmailDialog extends StatefulWidget {
+  final String currentEmail;
   final Function(String email) onSave;
 
-  const _EditProfileDialog({
-    required this.profileData,
+  const _EditEmailDialog({
+    required this.currentEmail,
     required this.onSave,
   });
 
   @override
-  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+  State<_EditEmailDialog> createState() => _EditEmailDialogState();
 }
 
-class _EditProfileDialogState extends State<_EditProfileDialog> {
+class _EditEmailDialogState extends State<_EditEmailDialog> {
   late TextEditingController _emailController;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -558,9 +557,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController(
-      text: widget.profileData['studentProfile']?['email'] ?? widget.profileData['email']
-    );
+    _emailController = TextEditingController(text: widget.currentEmail);
   }
 
   @override
@@ -571,6 +568,12 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Check if email actually changed
+    if (_emailController.text.trim() == widget.currentEmail) {
+      Navigator.of(context).pop();
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -622,7 +625,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.school,
+                    Icons.email,
                     color: Colors.white,
                     size: 35,
                   ),
@@ -632,7 +635,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 
                 // Title
                 const Text(
-                  'Edit Profile',
+                  'Edit Email',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -642,7 +645,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 const SizedBox(height: 8),
                 
                 const Text(
-                  'Update your personal information',
+                  'Update your email address',
                   style: TextStyle(
                     color: Colors.grey,
                     fontSize: 14,
@@ -651,17 +654,25 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 
                 const SizedBox(height: 28),
 
-                // Email Field (Only editable field based on your API)
+                // Email Field
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     labelText: 'Email Address',
+                    prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
                     fillColor: const Color(0xFFF9FAFB),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF3B82F6),
+                        width: 2,
+                      ),
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -737,184 +748,6 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
           ),
         ),
       ),
-    );
-  }
-}
-
-// Profile Updated Success Dialog
-class _ProfileUpdatedDialog extends StatelessWidget {
-  final Map<String, dynamic> profileData;
-
-  const _ProfileUpdatedDialog({required this.profileData});
-
-  String _formatDate(String? dateStr) {
-    if (dateStr == null) return 'N/A';
-    try {
-      final date = DateTime.parse(dateStr);
-      return DateFormat('MMM dd, yyyy').format(date);
-    } catch (e) {
-      return 'N/A';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1E40AF),
-              Color(0xFF3B82F6),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Success Icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.school,
-                color: Color(0xFF3B82F6),
-                size: 40,
-              ),
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // Title
-            const Text(
-              'Profile Updated!',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            
-            const SizedBox(height: 8),
-            
-            // Message
-            const Text(
-              'Your profile has been successfully updated',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Info Container
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  _DetailRow(
-                    label: 'Username',
-                    value: profileData['username'] ?? 'N/A',
-                  ),
-                  const SizedBox(height: 12),
-                  _DetailRow(
-                    label: 'Email',
-                    value: profileData['email'] ?? 'N/A',
-                  ),
-                  const Divider(color: Colors.white30, height: 32),
-                  _DetailRow(
-                    label: 'Created At',
-                    value: _formatDate(profileData['createdAt']),
-                  ),
-                  const SizedBox(height: 12),
-                  _DetailRow(
-                    label: 'Updated At',
-                    value: _formatDate(profileData['updatedAt']),
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 28),
-            
-            // Done Button
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF3B82F6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Done',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _DetailRow({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 14,
-          ),
-        ),
-        Flexible(
-          child: Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.right,
-          ),
-        ),
-      ],
     );
   }
 }
