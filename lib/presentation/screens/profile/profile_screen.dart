@@ -769,7 +769,7 @@ class _LogoutDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Logo Icon
+            // ACLC Logo
             Container(
               width: 80,
               height: 80,
@@ -784,10 +784,19 @@ class _LogoutDialog extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.logout_rounded,
-                color: Color(0xFFEF4444),
-                size: 40,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Image.asset(
+                  'assets/images/ACLCv1.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(
+                      Icons.school,
+                      color: Color(0xFF3B82F6),
+                      size: 40,
+                    );
+                  },
+                ),
               ),
             ),
             
@@ -832,7 +841,7 @@ class _LogoutDialog extends StatelessWidget {
                   elevation: 0,
                 ),
                 child: const Text(
-                  'Yes, Logout',
+                  'Logout',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
