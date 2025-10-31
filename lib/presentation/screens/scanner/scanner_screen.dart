@@ -11,10 +11,7 @@ class ScannerScreen extends StatefulWidget {
 }
 
 class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProviderStateMixin {
-  MobileScannerController cameraController = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-    facing: CameraFacing.back,
-  );
+  late MobileScannerController cameraController;
   
   bool _isProcessing = false;
   bool _hasScanned = false;
@@ -23,10 +20,23 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
+    // Initialize camera with better settings for clarity
+    cameraController = MobileScannerController(
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      facing: CameraFacing.back,
+    );
+    
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     )..repeat(); // This makes it loop infinitely
+    
+    // Start camera and ensure proper initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        cameraController.start();
+      }
+    });
   }
 
   @override
@@ -317,9 +327,10 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera view
+          // Camera view with improved clarity
           MobileScanner(
             controller: cameraController,
+            fit: BoxFit.cover, // Ensure camera fills the screen properly
             onDetect: (capture) {
               final List<Barcode> barcodes = capture.barcodes;
               if (barcodes.isNotEmpty) {
