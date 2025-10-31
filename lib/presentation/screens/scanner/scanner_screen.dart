@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../routes/app_router.dart';
 
@@ -31,6 +32,9 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
       duration: const Duration(milliseconds: 2000),
     )..repeat(); // This makes it loop infinitely
     
+    // Prevent screenshots and screen recording
+    _enableScreenshotPrevention();
+    
     // Start camera and ensure proper initialization
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -39,8 +43,31 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
     });
   }
 
+  // Method channel for screenshot prevention
+  static const MethodChannel _channel = MethodChannel('screenshot_prevention');
+
+  // Enable screenshot prevention
+  Future<void> _enableScreenshotPrevention() async {
+    try {
+      await _channel.invokeMethod('enable');
+    } catch (e) {
+      print('Failed to enable screenshot prevention: $e');
+    }
+  }
+
+  // Disable screenshot prevention
+  Future<void> _disableScreenshotPrevention() async {
+    try {
+      await _channel.invokeMethod('disable');
+    } catch (e) {
+      print('Failed to disable screenshot prevention: $e');
+    }
+  }
+
   @override
   void dispose() {
+    // Re-enable screenshots when leaving scanner
+    _disableScreenshotPrevention();
     _animationController.dispose();
     cameraController.dispose();
     super.dispose();
@@ -345,34 +372,67 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
           // Overlay with scanning frame
           _buildScannerOverlay(),
           
-          // Top bar
+          // Top bar with screenshot warning
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
-                    onPressed: () {
-                      Navigator.of(context).pushNamedAndRemoveUntil(
-                        AppRouter.dashboard,
-                        (route) => false,
-                      );
-                    },
+            child: Column(
+              children: [
+                // Screenshot prevention warning banner
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      cameraController.torchEnabled
-                          ? Icons.flash_on
-                          : Icons.flash_off,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                    onPressed: () => cameraController.toggleTorch(),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.block,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Screenshots disabled during scanning',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                // Navigation buttons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                        onPressed: () {
+                          Navigator.of(context).pushNamedAndRemoveUntil(
+                            AppRouter.dashboard,
+                            (route) => false,
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          cameraController.torchEnabled
+                              ? Icons.flash_on
+                              : Icons.flash_off,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: () => cameraController.toggleTorch(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           
