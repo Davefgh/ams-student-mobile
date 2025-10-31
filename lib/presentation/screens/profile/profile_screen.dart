@@ -49,11 +49,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showEditEmailModal() {
+  void _showEditEmailModal() async {
     if (_profileData == null) return;
     
     final studentProfile = _profileData?['studentProfile'];
-    showDialog(
+    final result = await showDialog<Map<String, String?>>(
       context: context,
       barrierDismissible: true,
       builder: (context) => _EditProfileDialog(
@@ -63,6 +63,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onSave: _handleUpdateProfile,
       ),
     );
+    
+    // After edit dialog closes, if we have result, handle the update
+    if (result != null && mounted) {
+      await _handleUpdateProfile(
+        firstname: result['firstname'],
+        lastname: result['lastname'],
+        email: result['email'],
+      );
+    }
   }
 
   Future<void> _handleUpdateProfile({
@@ -81,9 +90,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Reload profile to get updated data
         await _loadProfile();
         
+        // Add a small delay to ensure state is updated
+        await Future.delayed(const Duration(milliseconds: 300));
+        
         if (mounted) {
-          // Show success modal instead of snackbar
-          // Note: _profileData is already updated from _loadProfile()
+          // Show success modal
           _showProfileUpdatedModal();
         }
       } else {
@@ -570,7 +581,7 @@ class _EditProfileDialog extends StatefulWidget {
   final String currentFirstname;
   final String currentLastname;
   final String currentEmail;
-  final Function({String? firstname, String? lastname, String? email}) onSave;
+  final Function({String? firstname, String? lastname, String? email})? onSave;
 
   const _EditProfileDialog({
     required this.currentFirstname,
@@ -621,32 +632,12 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
       return;
     }
 
-    setState(() => _isLoading = true);
-
-    try {
-      await widget.onSave(
-        firstname: firstname.isNotEmpty ? firstname : null,
-        lastname: lastname.isNotEmpty ? lastname : null,
-        email: email.isNotEmpty ? email : null,
-      );
-      
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: const Color(0xFFEF4444),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    // Return the values to parent, then parent will handle update and show success modal
+    Navigator.of(context).pop({
+      'firstname': firstname.isNotEmpty ? firstname : null,
+      'lastname': lastname.isNotEmpty ? lastname : null,
+      'email': email.isNotEmpty ? email : null,
+    });
   }
 
   @override
@@ -936,23 +927,20 @@ class _ProfileUpdatedDialog extends StatelessWidget {
   }
 
   String _getUpdatedValue(String field) {
+    if (profileData == null) return 'N/A';
+    
     switch (field) {
       case 'firstname':
-        return profileData?['studentProfile']?['firstname'] ?? 
-               profileData?['updatedProfile']?['studentProfile']?['firstname'] ?? 'N/A';
+        return profileData?['studentProfile']?['firstname'] ?? 'N/A';
       case 'lastname':
-        return profileData?['studentProfile']?['lastname'] ?? 
-               profileData?['updatedProfile']?['studentProfile']?['lastname'] ?? 'N/A';
+        return profileData?['studentProfile']?['lastname'] ?? 'N/A';
       case 'email':
-        return profileData?['email'] ?? 
-               profileData?['updatedProfile']?['email'] ?? 'N/A';
+        return profileData?['email'] ?? 'N/A';
       case 'createdAt':
-        return _formatDate(profileData?['createdAt'] ?? 
-                          profileData?['updatedProfile']?['createdAt']);
+        return _formatDate(profileData?['createdAt']);
       case 'updatedAt':
-        return _formatDate(profileData?['updatedAt'] ?? 
-                          profileData?['updatedProfile']?['updatedAt'] ?? 
-                          DateTime.now().toIso8601String());
+        // Use updatedAt from profile, or current time if not available
+        return _formatDate(profileData?['updatedAt'] ?? DateTime.now().toIso8601String());
       default:
         return 'N/A';
     }
