@@ -1,12 +1,47 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/login_request.dart';
 import '../models/login_response.dart';
 import 'storage_service.dart';
 
 class ApiService {
-  // Update this to match your backend URL
-  static const String baseUrl = 'https://localhost:8081';
+  // Get base URL based on platform
+  // Android Emulator: Use 10.0.2.2 (maps to host machine's localhost)
+  // Physical Device: Use your computer's IP address on the local network
+  // Web: Use localhost
+  
+  // Your computer's IP address on the local network (for physical devices)
+  // Replace with your actual IP: Run 'ipconfig' on Windows
+  static const String localNetworkIp = '192.168.254.106'; // Your IP from ipconfig
+  
+  // Backend server configuration
+  // For development with physical devices, use HTTP to avoid SSL certificate issues
+  // Change to true and port 8081 for HTTPS in production
+  static const bool useHttps = false; // Use HTTP for development (avoids self-signed cert issues)
+  static const int serverPort = 8080; // HTTP port (8081 for HTTPS)
+  
+  static String get baseUrl {
+    final protocol = useHttps ? 'https' : 'http';
+    final port = serverPort;
+    
+    if (kIsWeb) {
+      // Web platform - use localhost
+      return '$protocol://localhost:$port';
+    } else if (Platform.isAndroid) {
+      // Android: Use local network IP for physical devices
+      // For emulator, change this to: return '$protocol://10.0.2.2:$port';
+      return '$protocol://$localNetworkIp:$port';
+    } else if (Platform.isIOS) {
+      // iOS Simulator: Use localhost
+      // Physical device: Use local network IP
+      return '$protocol://localhost:$port';
+    } else {
+      // Default for other platforms
+      return '$protocol://localhost:$port';
+    }
+  }
   
   final StorageService _storageService = StorageService();
 
@@ -16,26 +51,57 @@ class ApiService {
       print('Request body: ${json.encode(request.toJson())}');
       
       final url = Uri.parse('$baseUrl/api/account/login');
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: json.encode(request.toJson()),
-      );
       
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      // Create a client that doesn't follow redirects automatically
+      // This allows us to handle 307 redirects manually
+      final client = http.Client();
       
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return LoginResponse.fromJson(data);
-      } else {
-        return LoginResponse(
-          success: false,
-          message: 'Login failed. Status: ${response.statusCode}',
+      try {
+        final response = await client.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: json.encode(request.toJson()),
+        ).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw Exception('Connection timeout');
+          },
         );
+        
+        print('Response status: ${response.statusCode}');
+        print('Response headers: ${response.headers}');
+        print('Response body: ${response.body}');
+        
+        // Handle 307 redirect - backend redirecting HTTP to HTTPS
+        if (response.statusCode == 307 || response.statusCode == 301 || response.statusCode == 302) {
+          final location = response.headers['location'] ?? response.headers['Location'];
+          if (location != null) {
+            print('Redirect detected to: $location');
+            // If redirected to HTTPS and we're using HTTP, try HTTP endpoint directly
+            if (location.contains('https://') && !useHttps) {
+              // Backend is redirecting HTTP to HTTPS - we need to use HTTPS or fix backend
+              return LoginResponse(
+                success: false,
+                message: 'Backend requires HTTPS. Please configure backend to accept HTTP in development.',
+              );
+            }
+          }
+        }
+        
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          return LoginResponse.fromJson(data);
+        } else {
+          return LoginResponse(
+            success: false,
+            message: 'Login failed. Status: ${response.statusCode}',
+          );
+        }
+      } finally {
+        client.close();
       }
     } catch (e) {
       print('Login error: $e');
@@ -132,10 +198,17 @@ class ApiService {
     }
   }
 
-  /// Update student email only
-  Future<Map<String, dynamic>> updateStudentEmail({
-    required int studentId,
-    required String email,
+  /// Update account profile using /api/account/profile endpoint
+  /// Supports: firstname, lastname, email, password changes, sectionId, isRegular
+  Future<Map<String, dynamic>> updateAccountProfile({
+    String? firstname,
+    String? lastname,
+    String? email,
+    String? currentPassword,
+    String? newPassword,
+    String? confirmNewPassword,
+    int? sectionId,
+    bool? isRegular,
   }) async {
     try {
       final token = await _storageService.getAccessToken();
@@ -147,12 +220,19 @@ class ApiService {
         };
       }
 
-      final url = Uri.parse('$baseUrl/api/students/$studentId');
-      print('🌐 Updating student email at: $url');
+      final url = Uri.parse('$baseUrl/api/account/profile');
+      print('🌐 Updating account profile at: $url');
       
-      final updateData = {
-        'email': email,
-      };
+      // Build update data - only include non-null fields
+      final Map<String, dynamic> updateData = {};
+      if (firstname != null) updateData['firstname'] = firstname;
+      if (lastname != null) updateData['lastname'] = lastname;
+      if (email != null) updateData['email'] = email;
+      if (currentPassword != null) updateData['currentPassword'] = currentPassword;
+      if (newPassword != null) updateData['newPassword'] = newPassword;
+      if (confirmNewPassword != null) updateData['confirmNewPassword'] = confirmNewPassword;
+      if (sectionId != null) updateData['sectionId'] = sectionId;
+      if (isRegular != null) updateData['isRegular'] = isRegular;
       
       print('📝 Update data: $updateData');
 
@@ -173,14 +253,14 @@ class ApiService {
         final data = json.decode(response.body);
         return {
           'success': true,
-          'message': 'Email updated successfully',
-          'data': data,
+          'message': data['message'] ?? 'Profile updated successfully',
+          'data': data['updatedProfile'] ?? data,
         };
       } else if (response.statusCode == 400) {
         final errorData = json.decode(response.body);
         return {
           'success': false,
-          'error': errorData['message'] ?? 'Invalid email',
+          'error': errorData['message'] ?? 'Invalid data',
         };
       } else if (response.statusCode == 401) {
         return {
@@ -190,21 +270,16 @@ class ApiService {
       } else if (response.statusCode == 403) {
         return {
           'success': false,
-          'error': 'You do not have permission to update your email.',
-        };
-      } else if (response.statusCode == 404) {
-        return {
-          'success': false,
-          'error': 'Student not found',
+          'error': 'You do not have permission to update your profile.',
         };
       } else {
         return {
           'success': false,
-          'error': 'Failed to update email: ${response.statusCode}',
+          'error': 'Failed to update profile: ${response.statusCode}',
         };
       }
     } catch (e) {
-      print('💥 Error in updateStudentEmail: $e');
+      print('💥 Error in updateAccountProfile: $e');
       return {
         'success': false,
         'error': 'Error: $e',

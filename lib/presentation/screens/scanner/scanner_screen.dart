@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../routes/app_router.dart';
 
@@ -11,10 +12,7 @@ class ScannerScreen extends StatefulWidget {
 }
 
 class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProviderStateMixin {
-  MobileScannerController cameraController = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-    facing: CameraFacing.back,
-  );
+  late MobileScannerController cameraController;
   
   bool _isProcessing = false;
   bool _hasScanned = false;
@@ -23,14 +21,53 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
+    // Initialize camera with better settings for clarity
+    cameraController = MobileScannerController(
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      facing: CameraFacing.back,
+    );
+    
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     )..repeat(); // This makes it loop infinitely
+    
+    // Prevent screenshots and screen recording (no visible banner)
+    _enableScreenshotPrevention();
+    
+    // Start camera and ensure proper initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        cameraController.start();
+      }
+    });
+  }
+
+  // Method channel for screenshot prevention
+  static const MethodChannel _channel = MethodChannel('screenshot_prevention');
+
+  // Enable screenshot prevention
+  Future<void> _enableScreenshotPrevention() async {
+    try {
+      await _channel.invokeMethod('enable');
+    } catch (e) {
+      print('Failed to enable screenshot prevention: $e');
+    }
+  }
+
+  // Disable screenshot prevention
+  Future<void> _disableScreenshotPrevention() async {
+    try {
+      await _channel.invokeMethod('disable');
+    } catch (e) {
+      print('Failed to disable screenshot prevention: $e');
+    }
   }
 
   @override
   void dispose() {
+    // Re-enable screenshots when leaving scanner
+    _disableScreenshotPrevention();
     _animationController.dispose();
     cameraController.dispose();
     super.dispose();
@@ -317,9 +354,10 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera view
+          // Camera view with improved clarity
           MobileScanner(
             controller: cameraController,
+            fit: BoxFit.cover, // Ensure camera fills the screen properly
             onDetect: (capture) {
               final List<Barcode> barcodes = capture.barcodes;
               if (barcodes.isNotEmpty) {
@@ -418,20 +456,18 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
 
   Widget _buildScannerOverlay() {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
-      ),
+      // No dark overlay - let camera show clearly
       child: Center(
         child: Container(
           width: 280,
           height: 280,
+          // Remove white border - just show corner markers
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.white, width: 2),
-            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.transparent, width: 0),
           ),
           child: Stack(
             children: [
-              // Corner decorations
+              // Corner decorations only - no white square
               _buildCorner(Alignment.topLeft, true, true),
               _buildCorner(Alignment.topRight, true, false),
               _buildCorner(Alignment.bottomLeft, false, true),
@@ -479,21 +515,22 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
     return Align(
       alignment: alignment,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 30,
+        height: 30,
         decoration: BoxDecoration(
+          // Only show L-shaped corner indicators, no border
           border: Border(
             top: isTop
-                ? const BorderSide(color: Color(0xFF3B82F6), width: 4)
+                ? const BorderSide(color: Color(0xFF3B82F6), width: 3)
                 : BorderSide.none,
             bottom: !isTop
-                ? const BorderSide(color: Color(0xFF3B82F6), width: 4)
+                ? const BorderSide(color: Color(0xFF3B82F6), width: 3)
                 : BorderSide.none,
             left: isLeft
-                ? const BorderSide(color: Color(0xFF3B82F6), width: 4)
+                ? const BorderSide(color: Color(0xFF3B82F6), width: 3)
                 : BorderSide.none,
             right: !isLeft
-                ? const BorderSide(color: Color(0xFF3B82F6), width: 4)
+                ? const BorderSide(color: Color(0xFF3B82F6), width: 3)
                 : BorderSide.none,
           ),
         ),

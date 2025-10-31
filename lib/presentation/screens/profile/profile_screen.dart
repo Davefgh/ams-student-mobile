@@ -49,30 +49,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showEditEmailModal() {
+  void _showEditEmailModal() async {
     if (_profileData == null) return;
     
-    showDialog(
+    final studentProfile = _profileData?['studentProfile'];
+    final result = await showDialog<Map<String, String?>>(
       context: context,
       barrierDismissible: true,
-      builder: (context) => _EditEmailDialog(
-        currentEmail: _profileData?['studentProfile']?['email'] ?? _profileData?['email'] ?? '',
-        onSave: _handleUpdateEmail,
+      builder: (context) => _EditProfileDialog(
+        currentFirstname: studentProfile?['firstname'] ?? '',
+        currentLastname: studentProfile?['lastname'] ?? '',
+        currentEmail: _profileData?['email'] ?? '',
+        onSave: _handleUpdateProfile,
       ),
     );
+    
+    // After edit dialog closes, if we have result, handle the update
+    if (result != null && mounted) {
+      await _handleUpdateProfile(
+        firstname: result['firstname'],
+        lastname: result['lastname'],
+        email: result['email'],
+      );
+    }
   }
 
-  Future<void> _handleUpdateEmail(String email) async {
+  Future<void> _handleUpdateProfile({
+    String? firstname,
+    String? lastname,
+    String? email,
+  }) async {
     try {
-      final studentProfile = _profileData?['studentProfile'];
-      final studentId = studentProfile?['id'];
-      
-      if (studentId == null) {
-        throw Exception('Student ID not found');
-      }
-
-      final response = await _apiService.updateStudentEmail(
-        studentId: studentId,
+      final response = await _apiService.updateAccountProfile(
+        firstname: firstname,
+        lastname: lastname,
         email: email,
       );
 
@@ -80,21 +90,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Reload profile to get updated data
         await _loadProfile();
         
+        // Add a small delay to ensure state is updated
+        await Future.delayed(const Duration(milliseconds: 300));
+        
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Email updated successfully!'),
-              backgroundColor: Color(0xFF10B981),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          // Show success modal
+          _showProfileUpdatedModal();
         }
       } else {
-        throw Exception(response['error'] ?? 'Failed to update email');
+        throw Exception(response['error'] ?? 'Failed to update profile');
       }
     } catch (e) {
       if (mounted) {
-        _showError('Failed to update email: $e');
+        _showError('Failed to update profile: $e');
       }
     }
   }
@@ -119,11 +127,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _showProfileUpdatedModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _ProfileUpdatedDialog(
+        profileData: _profileData,
+      ),
+    );
+  }
+
   String _getInitials() {
+    final firstname = _profileData?['studentProfile']?['firstname'] ?? '';
+    final lastname = _profileData?['studentProfile']?['lastname'] ?? '';
+    
+    if (firstname.isNotEmpty && lastname.isNotEmpty) {
+      return '${firstname[0]}${lastname[0]}'.toUpperCase();
+    } else if (firstname.isNotEmpty) {
+      return firstname.substring(0, firstname.length > 1 ? 2 : 1).toUpperCase();
+    }
+    
+    // Fallback to username
     final username = _profileData?['username'] ?? '';
     if (username.isEmpty) return 'N';
     if (username.length == 1) return username.toUpperCase();
     return username.substring(0, 2).toUpperCase();
+  }
+
+  String _getDisplayName() {
+    final firstname = _profileData?['studentProfile']?['firstname'] ?? '';
+    final lastname = _profileData?['studentProfile']?['lastname'] ?? '';
+    
+    if (firstname.isNotEmpty && lastname.isNotEmpty) {
+      return '$firstname $lastname';
+    } else if (firstname.isNotEmpty) {
+      return firstname;
+    } else if (lastname.isNotEmpty) {
+      return lastname;
+    }
+    
+    // Fallback to username
+    return _profileData?['username'] ?? 'No Name';
   }
 
   Future<void> _handleLogout() async {
@@ -280,7 +324,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             size: 20,
                                           ),
                                           onPressed: _showEditEmailModal,
-                                          tooltip: 'Edit Email',
+                                          tooltip: 'Edit Profile',
                                         ),
                                       ],
                                     ),
@@ -307,9 +351,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     
                                     const SizedBox(height: 16),
                                     
-                                    // Username
+                                    // Display Name (firstname + lastname, or username as fallback)
                                     Text(
-                                      _profileData?['username'] ?? 'No Name',
+                                      _getDisplayName(),
                                       style: const TextStyle(
                                         fontSize: 24,
                                         fontWeight: FontWeight.bold,
@@ -383,7 +427,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               
                               const SizedBox(height: 12),
                               
-                              // Username
+                              // First Name
+                              _InfoItem(
+                                icon: Icons.person_outline,
+                                label: 'First Name',
+                                value: _profileData?['studentProfile']?['firstname'] ?? 'N/A',
+                              ),
+                              
+                              // Last Name
+                              _InfoItem(
+                                icon: Icons.person_outline,
+                                label: 'Last Name',
+                                value: _profileData?['studentProfile']?['lastname'] ?? 'N/A',
+                              ),
+                              
+                              // Username (read-only)
                               _InfoItem(
                                 icon: Icons.person,
                                 label: 'Username',
@@ -394,7 +452,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _InfoItem(
                                 icon: Icons.email,
                                 label: 'Email',
-                                value: _profileData?['studentProfile']?['email'] ?? _profileData?['email'] ?? 'N/A',
+                                value: _profileData?['email'] ?? 'N/A',
                               ),
                               
                               // Student ID
@@ -518,21 +576,27 @@ class _InfoItem extends StatelessWidget {
   }
 }
 
-// Edit Email Dialog
-class _EditEmailDialog extends StatefulWidget {
+// Edit Profile Dialog (Firstname, Lastname, Email)
+class _EditProfileDialog extends StatefulWidget {
+  final String currentFirstname;
+  final String currentLastname;
   final String currentEmail;
-  final Function(String email) onSave;
+  final Function({String? firstname, String? lastname, String? email})? onSave;
 
-  const _EditEmailDialog({
+  const _EditProfileDialog({
+    required this.currentFirstname,
+    required this.currentLastname,
     required this.currentEmail,
     required this.onSave,
   });
 
   @override
-  State<_EditEmailDialog> createState() => _EditEmailDialogState();
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
 }
 
-class _EditEmailDialogState extends State<_EditEmailDialog> {
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  late TextEditingController _firstnameController;
+  late TextEditingController _lastnameController;
   late TextEditingController _emailController;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -540,11 +604,15 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
   @override
   void initState() {
     super.initState();
+    _firstnameController = TextEditingController(text: widget.currentFirstname);
+    _lastnameController = TextEditingController(text: widget.currentLastname);
     _emailController = TextEditingController(text: widget.currentEmail);
   }
 
   @override
   void dispose() {
+    _firstnameController.dispose();
+    _lastnameController.dispose();
     _emailController.dispose();
     super.dispose();
   }
@@ -552,34 +620,24 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Check if email actually changed
-    if (_emailController.text.trim() == widget.currentEmail) {
+    final firstname = _firstnameController.text.trim();
+    final lastname = _lastnameController.text.trim();
+    final email = _emailController.text.trim();
+
+    // Check if anything actually changed
+    if (firstname == widget.currentFirstname &&
+        lastname == widget.currentLastname &&
+        email == widget.currentEmail) {
       Navigator.of(context).pop();
       return;
     }
 
-    setState(() => _isLoading = true);
-
-    try {
-      await widget.onSave(_emailController.text.trim());
-      
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: const Color(0xFFEF4444),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    // Return the values to parent, then parent will handle update and show success modal
+    Navigator.of(context).pop({
+      'firstname': firstname.isNotEmpty ? firstname : null,
+      'lastname': lastname.isNotEmpty ? lastname : null,
+      'email': email.isNotEmpty ? email : null,
+    });
   }
 
   @override
@@ -588,29 +646,61 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(28),
       ),
-      backgroundColor: Colors.white,
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1E40AF),
+              Color(0xFF3B82F6),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3B82F6).withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo Icon
+                // ACLC Logo
                 Container(
-                  width: 70,
-                  height: 70,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.email,
                     color: Colors.white,
-                    size: 35,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Image.asset(
+                      'assets/images/ACLCv1.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.person,
+                          color: Color(0xFF3B82F6),
+                          size: 40,
+                        );
+                      },
+                    ),
                   ),
                 ),
                 
@@ -618,41 +708,123 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
                 
                 // Title
                 const Text(
-                  'Edit Email',
+                  'Edit Profile',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
                 
                 const SizedBox(height: 8),
                 
                 const Text(
-                  'Update your email address',
+                  'Update your profile information',
                   style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
+                    color: Colors.white70,
+                    fontSize: 16,
                   ),
                 ),
                 
                 const SizedBox(height: 28),
 
+                // First Name Field
+                TextFormField(
+                  controller: _firstnameController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'First Name',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    prefixIcon: const Icon(Icons.person_outline, color: Colors.white70),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.1),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.white,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  validator: (value) {
+                    // First name is optional, but if provided should be valid
+                    if (value != null && value.trim().isNotEmpty && value.trim().length < 2) {
+                      return 'First name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                ),
+                
+                const SizedBox(height: 16),
+
+                // Last Name Field
+                TextFormField(
+                  controller: _lastnameController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Last Name',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    prefixIcon: const Icon(Icons.person_outline, color: Colors.white70),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.1),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.white,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  validator: (value) {
+                    // Last name is optional, but if provided should be valid
+                    if (value != null && value.trim().isNotEmpty && value.trim().length < 2) {
+                      return 'Last name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                ),
+                
+                const SizedBox(height: 16),
+
                 // Email Field
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Email Address',
-                    prefixIcon: const Icon(Icons.email_outlined),
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    prefixIcon: const Icon(Icons.email_outlined, color: Colors.white70),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
                     ),
                     filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
+                    fillColor: Colors.white.withOpacity(0.1),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF3B82F6),
+                        color: Colors.white,
                         width: 2,
                       ),
                     ),
@@ -673,14 +845,16 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
                 // Save Button
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 52,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF3B82F6),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
+                      elevation: 0,
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -688,7 +862,7 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
                             ),
                           )
                         : const Text(
@@ -696,7 +870,6 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
                             ),
                           ),
                   ),
@@ -707,13 +880,14 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
                 // Cancel Button
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 52,
                   child: OutlinedButton(
                     onPressed: _isLoading ? null : () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFF3B82F6)),
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white, width: 2),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     child: const Text(
@@ -721,7 +895,6 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF3B82F6),
                       ),
                     ),
                   ),
@@ -731,6 +904,265 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// Profile Updated Success Dialog
+class _ProfileUpdatedDialog extends StatelessWidget {
+  final Map<String, dynamic>? profileData;
+
+  const _ProfileUpdatedDialog({
+    this.profileData,
+  });
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return 'N/A';
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('MMM dd, yyyy').format(date);
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  String _getUpdatedValue(String field) {
+    if (profileData == null) return 'N/A';
+    
+    switch (field) {
+      case 'firstname':
+        return profileData?['studentProfile']?['firstname'] ?? 'N/A';
+      case 'lastname':
+        return profileData?['studentProfile']?['lastname'] ?? 'N/A';
+      case 'email':
+        return profileData?['email'] ?? 'N/A';
+      case 'createdAt':
+        return _formatDate(profileData?['createdAt']);
+      case 'updatedAt':
+        // Use updatedAt from profile, or current time if not available
+        return _formatDate(profileData?['updatedAt'] ?? DateTime.now().toIso8601String());
+      default:
+        return 'N/A';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+      ),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1E40AF),
+              Color(0xFF3B82F6),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3B82F6).withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ACLC Logo
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Image.asset(
+                  'assets/images/ACLCv1.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(
+                      Icons.school,
+                      color: Color(0xFF3B82F6),
+                      size: 40,
+                    );
+                  },
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Title
+            const Text(
+              'Profile Updated!',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Subtitle
+            const Text(
+              'Your profile has been successfully updated',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Profile Details Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // First Name
+                  _DetailRow(
+                    label: 'First Name',
+                    value: _getUpdatedValue('firstname'),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Last Name
+                  _DetailRow(
+                    label: 'Last Name',
+                    value: _getUpdatedValue('lastname'),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Email
+                  _DetailRow(
+                    label: 'Email',
+                    value: _getUpdatedValue('email'),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Divider
+                  Container(
+                    height: 1,
+                    color: Colors.white.withOpacity(0.3),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Created At
+                  _DetailRow(
+                    label: 'Created At',
+                    value: _getUpdatedValue('createdAt'),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Updated At
+                  _DetailRow(
+                    label: 'Updated At',
+                    value: _getUpdatedValue('updatedAt'),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Done Button
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF3B82F6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Detail Row Widget for Profile Updated Dialog
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+            textAlign: TextAlign.end,
+          ),
+        ),
+      ],
     );
   }
 }
