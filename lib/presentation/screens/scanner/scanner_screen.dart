@@ -32,7 +32,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
       duration: const Duration(milliseconds: 2000),
     )..repeat(); // This makes it loop infinitely
     
-    // Prevent screenshots and screen recording
+    // Prevent screenshots and screen recording (no visible banner)
     _enableScreenshotPrevention();
     
     // Start camera and ensure proper initialization
@@ -372,67 +372,34 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
           // Overlay with scanning frame
           _buildScannerOverlay(),
           
-          // Top bar with screenshot warning
+          // Top bar
           SafeArea(
-            child: Column(
-              children: [
-                // Screenshot prevention warning banner
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                    onPressed: () {
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                        AppRouter.dashboard,
+                        (route) => false,
+                      );
+                    },
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.block,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Screenshots disabled during scanning',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                  IconButton(
+                    icon: Icon(
+                      cameraController.torchEnabled
+                          ? Icons.flash_on
+                          : Icons.flash_off,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: () => cameraController.toggleTorch(),
                   ),
-                ),
-                // Navigation buttons
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
-                        onPressed: () {
-                          Navigator.of(context).pushNamedAndRemoveUntil(
-                            AppRouter.dashboard,
-                            (route) => false,
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          cameraController.torchEnabled
-                              ? Icons.flash_on
-                              : Icons.flash_off,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        onPressed: () => cameraController.toggleTorch(),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           
