@@ -52,19 +52,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showEditEmailModal() {
     if (_profileData == null) return;
     
+    final studentProfile = _profileData?['studentProfile'];
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => _EditEmailDialog(
-        currentEmail: _profileData?['studentProfile']?['email'] ?? _profileData?['email'] ?? '',
-        onSave: _handleUpdateEmail,
+      builder: (context) => _EditProfileDialog(
+        currentFirstname: studentProfile?['firstname'] ?? '',
+        currentLastname: studentProfile?['lastname'] ?? '',
+        currentEmail: _profileData?['email'] ?? '',
+        onSave: _handleUpdateProfile,
       ),
     );
   }
 
-  Future<void> _handleUpdateEmail(String email) async {
+  Future<void> _handleUpdateProfile({
+    String? firstname,
+    String? lastname,
+    String? email,
+  }) async {
     try {
       final response = await _apiService.updateAccountProfile(
+        firstname: firstname,
+        lastname: lastname,
         email: email,
       );
 
@@ -75,18 +84,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(response['message'] ?? 'Email updated successfully!'),
+              content: Text(response['message'] ?? 'Profile updated successfully!'),
               backgroundColor: const Color(0xFF10B981),
               behavior: SnackBarBehavior.floating,
             ),
           );
         }
       } else {
-        throw Exception(response['error'] ?? 'Failed to update email');
+        throw Exception(response['error'] ?? 'Failed to update profile');
       }
     } catch (e) {
       if (mounted) {
-        _showError('Failed to update email: $e');
+        _showError('Failed to update profile: $e');
       }
     }
   }
@@ -112,10 +121,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String _getInitials() {
+    final firstname = _profileData?['studentProfile']?['firstname'] ?? '';
+    final lastname = _profileData?['studentProfile']?['lastname'] ?? '';
+    
+    if (firstname.isNotEmpty && lastname.isNotEmpty) {
+      return '${firstname[0]}${lastname[0]}'.toUpperCase();
+    } else if (firstname.isNotEmpty) {
+      return firstname.substring(0, firstname.length > 1 ? 2 : 1).toUpperCase();
+    }
+    
+    // Fallback to username
     final username = _profileData?['username'] ?? '';
     if (username.isEmpty) return 'N';
     if (username.length == 1) return username.toUpperCase();
     return username.substring(0, 2).toUpperCase();
+  }
+
+  String _getDisplayName() {
+    final firstname = _profileData?['studentProfile']?['firstname'] ?? '';
+    final lastname = _profileData?['studentProfile']?['lastname'] ?? '';
+    
+    if (firstname.isNotEmpty && lastname.isNotEmpty) {
+      return '$firstname $lastname';
+    } else if (firstname.isNotEmpty) {
+      return firstname;
+    } else if (lastname.isNotEmpty) {
+      return lastname;
+    }
+    
+    // Fallback to username
+    return _profileData?['username'] ?? 'No Name';
   }
 
   Future<void> _handleLogout() async {
@@ -272,7 +307,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             size: 20,
                                           ),
                                           onPressed: _showEditEmailModal,
-                                          tooltip: 'Edit Email',
+                                          tooltip: 'Edit Profile',
                                         ),
                                       ],
                                     ),
@@ -299,9 +334,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     
                                     const SizedBox(height: 16),
                                     
-                                    // Username
+                                    // Display Name (firstname + lastname, or username as fallback)
                                     Text(
-                                      _profileData?['username'] ?? 'No Name',
+                                      _getDisplayName(),
                                       style: const TextStyle(
                                         fontSize: 24,
                                         fontWeight: FontWeight.bold,
@@ -375,7 +410,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               
                               const SizedBox(height: 12),
                               
-                              // Username
+                              // First Name
+                              _InfoItem(
+                                icon: Icons.person_outline,
+                                label: 'First Name',
+                                value: _profileData?['studentProfile']?['firstname'] ?? 'N/A',
+                              ),
+                              
+                              // Last Name
+                              _InfoItem(
+                                icon: Icons.person_outline,
+                                label: 'Last Name',
+                                value: _profileData?['studentProfile']?['lastname'] ?? 'N/A',
+                              ),
+                              
+                              // Username (read-only)
                               _InfoItem(
                                 icon: Icons.person,
                                 label: 'Username',
@@ -386,7 +435,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _InfoItem(
                                 icon: Icons.email,
                                 label: 'Email',
-                                value: _profileData?['studentProfile']?['email'] ?? _profileData?['email'] ?? 'N/A',
+                                value: _profileData?['email'] ?? 'N/A',
                               ),
                               
                               // Student ID
@@ -510,21 +559,27 @@ class _InfoItem extends StatelessWidget {
   }
 }
 
-// Edit Email Dialog
-class _EditEmailDialog extends StatefulWidget {
+// Edit Profile Dialog (Firstname, Lastname, Email)
+class _EditProfileDialog extends StatefulWidget {
+  final String currentFirstname;
+  final String currentLastname;
   final String currentEmail;
-  final Function(String email) onSave;
+  final Function({String? firstname, String? lastname, String? email}) onSave;
 
-  const _EditEmailDialog({
+  const _EditProfileDialog({
+    required this.currentFirstname,
+    required this.currentLastname,
     required this.currentEmail,
     required this.onSave,
   });
 
   @override
-  State<_EditEmailDialog> createState() => _EditEmailDialogState();
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
 }
 
-class _EditEmailDialogState extends State<_EditEmailDialog> {
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  late TextEditingController _firstnameController;
+  late TextEditingController _lastnameController;
   late TextEditingController _emailController;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -532,11 +587,15 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
   @override
   void initState() {
     super.initState();
+    _firstnameController = TextEditingController(text: widget.currentFirstname);
+    _lastnameController = TextEditingController(text: widget.currentLastname);
     _emailController = TextEditingController(text: widget.currentEmail);
   }
 
   @override
   void dispose() {
+    _firstnameController.dispose();
+    _lastnameController.dispose();
     _emailController.dispose();
     super.dispose();
   }
@@ -544,8 +603,14 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Check if email actually changed
-    if (_emailController.text.trim() == widget.currentEmail) {
+    final firstname = _firstnameController.text.trim();
+    final lastname = _lastnameController.text.trim();
+    final email = _emailController.text.trim();
+
+    // Check if anything actually changed
+    if (firstname == widget.currentFirstname &&
+        lastname == widget.currentLastname &&
+        email == widget.currentEmail) {
       Navigator.of(context).pop();
       return;
     }
@@ -553,7 +618,11 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
     setState(() => _isLoading = true);
 
     try {
-      await widget.onSave(_emailController.text.trim());
+      await widget.onSave(
+        firstname: firstname.isNotEmpty ? firstname : null,
+        lastname: lastname.isNotEmpty ? lastname : null,
+        email: email.isNotEmpty ? email : null,
+      );
       
       if (mounted) {
         Navigator.of(context).pop();
@@ -600,7 +669,7 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.email,
+                    Icons.person,
                     color: Colors.white,
                     size: 35,
                   ),
@@ -610,7 +679,7 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
                 
                 // Title
                 const Text(
-                  'Edit Email',
+                  'Edit Profile',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -620,7 +689,7 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
                 const SizedBox(height: 8),
                 
                 const Text(
-                  'Update your email address',
+                  'Update your profile information',
                   style: TextStyle(
                     color: Colors.grey,
                     fontSize: 14,
@@ -628,6 +697,66 @@ class _EditEmailDialogState extends State<_EditEmailDialog> {
                 ),
                 
                 const SizedBox(height: 28),
+
+                // First Name Field
+                TextFormField(
+                  controller: _firstnameController,
+                  decoration: InputDecoration(
+                    labelText: 'First Name',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF9FAFB),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF3B82F6),
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  validator: (value) {
+                    // First name is optional, but if provided should be valid
+                    if (value != null && value.trim().isNotEmpty && value.trim().length < 2) {
+                      return 'First name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                ),
+                
+                const SizedBox(height: 16),
+
+                // Last Name Field
+                TextFormField(
+                  controller: _lastnameController,
+                  decoration: InputDecoration(
+                    labelText: 'Last Name',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF9FAFB),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF3B82F6),
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  validator: (value) {
+                    // Last name is optional, but if provided should be valid
+                    if (value != null && value.trim().isNotEmpty && value.trim().length < 2) {
+                      return 'Last name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                ),
+                
+                const SizedBox(height: 16),
 
                 // Email Field
                 TextFormField(
