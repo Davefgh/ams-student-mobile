@@ -64,15 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _handleUpdateEmail(String email) async {
     try {
-      final studentProfile = _profileData?['studentProfile'];
-      final studentId = studentProfile?['id'];
-      
-      if (studentId == null) {
-        throw Exception('Student ID not found');
-      }
-
-      final response = await _apiService.updateStudentEmail(
-        studentId: studentId,
+      final response = await _apiService.updateAccountProfile(
         email: email,
       );
 
@@ -82,9 +74,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Email updated successfully!'),
-              backgroundColor: Color(0xFF10B981),
+            SnackBar(
+              content: Text(response['message'] ?? 'Email updated successfully!'),
+              backgroundColor: const Color(0xFF10B981),
               behavior: SnackBarBehavior.floating,
             ),
           );

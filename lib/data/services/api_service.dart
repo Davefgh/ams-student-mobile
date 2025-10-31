@@ -132,10 +132,17 @@ class ApiService {
     }
   }
 
-  /// Update student email only
-  Future<Map<String, dynamic>> updateStudentEmail({
-    required int studentId,
-    required String email,
+  /// Update account profile using /api/account/profile endpoint
+  /// Supports: firstname, lastname, email, password changes, sectionId, isRegular
+  Future<Map<String, dynamic>> updateAccountProfile({
+    String? firstname,
+    String? lastname,
+    String? email,
+    String? currentPassword,
+    String? newPassword,
+    String? confirmNewPassword,
+    int? sectionId,
+    bool? isRegular,
   }) async {
     try {
       final token = await _storageService.getAccessToken();
@@ -147,12 +154,19 @@ class ApiService {
         };
       }
 
-      final url = Uri.parse('$baseUrl/api/students/$studentId');
-      print('🌐 Updating student email at: $url');
+      final url = Uri.parse('$baseUrl/api/account/profile');
+      print('🌐 Updating account profile at: $url');
       
-      final updateData = {
-        'email': email,
-      };
+      // Build update data - only include non-null fields
+      final Map<String, dynamic> updateData = {};
+      if (firstname != null) updateData['firstname'] = firstname;
+      if (lastname != null) updateData['lastname'] = lastname;
+      if (email != null) updateData['email'] = email;
+      if (currentPassword != null) updateData['currentPassword'] = currentPassword;
+      if (newPassword != null) updateData['newPassword'] = newPassword;
+      if (confirmNewPassword != null) updateData['confirmNewPassword'] = confirmNewPassword;
+      if (sectionId != null) updateData['sectionId'] = sectionId;
+      if (isRegular != null) updateData['isRegular'] = isRegular;
       
       print('📝 Update data: $updateData');
 
@@ -173,14 +187,14 @@ class ApiService {
         final data = json.decode(response.body);
         return {
           'success': true,
-          'message': 'Email updated successfully',
-          'data': data,
+          'message': data['message'] ?? 'Profile updated successfully',
+          'data': data['updatedProfile'] ?? data,
         };
       } else if (response.statusCode == 400) {
         final errorData = json.decode(response.body);
         return {
           'success': false,
-          'error': errorData['message'] ?? 'Invalid email',
+          'error': errorData['message'] ?? 'Invalid data',
         };
       } else if (response.statusCode == 401) {
         return {
@@ -190,21 +204,16 @@ class ApiService {
       } else if (response.statusCode == 403) {
         return {
           'success': false,
-          'error': 'You do not have permission to update your email.',
-        };
-      } else if (response.statusCode == 404) {
-        return {
-          'success': false,
-          'error': 'Student not found',
+          'error': 'You do not have permission to update your profile.',
         };
       } else {
         return {
           'success': false,
-          'error': 'Failed to update email: ${response.statusCode}',
+          'error': 'Failed to update profile: ${response.statusCode}',
         };
       }
     } catch (e) {
-      print('💥 Error in updateStudentEmail: $e');
+      print('💥 Error in updateAccountProfile: $e');
       return {
         'success': false,
         'error': 'Error: $e',
