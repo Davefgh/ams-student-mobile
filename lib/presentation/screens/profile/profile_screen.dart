@@ -82,13 +82,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await _loadProfile();
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response['message'] ?? 'Profile updated successfully!'),
-              backgroundColor: const Color(0xFF10B981),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          // Show success modal instead of snackbar
+          // Note: _profileData is already updated from _loadProfile()
+          _showProfileUpdatedModal();
         }
       } else {
         throw Exception(response['error'] ?? 'Failed to update profile');
@@ -118,6 +114,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       return 'N/A';
     }
+  }
+
+  void _showProfileUpdatedModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _ProfileUpdatedDialog(
+        profileData: _profileData,
+      ),
+    );
   }
 
   String _getInitials() {
@@ -649,29 +655,61 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(28),
       ),
-      backgroundColor: Colors.white,
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1E40AF),
+              Color(0xFF3B82F6),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3B82F6).withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo Icon
+                // ACLC Logo
                 Container(
-                  width: 70,
-                  height: 70,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person,
                     color: Colors.white,
-                    size: 35,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Image.asset(
+                      'assets/images/ACLCv1.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.person,
+                          color: Color(0xFF3B82F6),
+                          size: 40,
+                        );
+                      },
+                    ),
                   ),
                 ),
                 
@@ -681,8 +719,9 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 const Text(
                   'Edit Profile',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
                 
@@ -691,8 +730,8 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 const Text(
                   'Update your profile information',
                   style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
+                    color: Colors.white70,
+                    fontSize: 16,
                   ),
                 ),
                 
@@ -701,18 +740,25 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 // First Name Field
                 TextFormField(
                   controller: _firstnameController,
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'First Name',
-                    prefixIcon: const Icon(Icons.person_outline),
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    prefixIcon: const Icon(Icons.person_outline, color: Colors.white70),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
                     ),
                     filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
+                    fillColor: Colors.white.withOpacity(0.1),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF3B82F6),
+                        color: Colors.white,
                         width: 2,
                       ),
                     ),
@@ -731,18 +777,25 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 // Last Name Field
                 TextFormField(
                   controller: _lastnameController,
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Last Name',
-                    prefixIcon: const Icon(Icons.person_outline),
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    prefixIcon: const Icon(Icons.person_outline, color: Colors.white70),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
                     ),
                     filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
+                    fillColor: Colors.white.withOpacity(0.1),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF3B82F6),
+                        color: Colors.white,
                         width: 2,
                       ),
                     ),
@@ -762,18 +815,25 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Email Address',
-                    prefixIcon: const Icon(Icons.email_outlined),
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    prefixIcon: const Icon(Icons.email_outlined, color: Colors.white70),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
                     ),
                     filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
+                    fillColor: Colors.white.withOpacity(0.1),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: Color(0xFF3B82F6),
+                        color: Colors.white,
                         width: 2,
                       ),
                     ),
@@ -794,14 +854,16 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 // Save Button
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 52,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF3B82F6),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
+                      elevation: 0,
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -809,7 +871,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
                             ),
                           )
                         : const Text(
@@ -817,7 +879,6 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
                             ),
                           ),
                   ),
@@ -828,13 +889,14 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 // Cancel Button
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 52,
                   child: OutlinedButton(
                     onPressed: _isLoading ? null : () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFF3B82F6)),
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white, width: 2),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     child: const Text(
@@ -842,7 +904,6 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF3B82F6),
                       ),
                     ),
                   ),
@@ -852,6 +913,268 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// Profile Updated Success Dialog
+class _ProfileUpdatedDialog extends StatelessWidget {
+  final Map<String, dynamic>? profileData;
+
+  const _ProfileUpdatedDialog({
+    this.profileData,
+  });
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return 'N/A';
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('MMM dd, yyyy').format(date);
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  String _getUpdatedValue(String field) {
+    switch (field) {
+      case 'firstname':
+        return profileData?['studentProfile']?['firstname'] ?? 
+               profileData?['updatedProfile']?['studentProfile']?['firstname'] ?? 'N/A';
+      case 'lastname':
+        return profileData?['studentProfile']?['lastname'] ?? 
+               profileData?['updatedProfile']?['studentProfile']?['lastname'] ?? 'N/A';
+      case 'email':
+        return profileData?['email'] ?? 
+               profileData?['updatedProfile']?['email'] ?? 'N/A';
+      case 'createdAt':
+        return _formatDate(profileData?['createdAt'] ?? 
+                          profileData?['updatedProfile']?['createdAt']);
+      case 'updatedAt':
+        return _formatDate(profileData?['updatedAt'] ?? 
+                          profileData?['updatedProfile']?['updatedAt'] ?? 
+                          DateTime.now().toIso8601String());
+      default:
+        return 'N/A';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+      ),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1E40AF),
+              Color(0xFF3B82F6),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3B82F6).withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ACLC Logo
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Image.asset(
+                  'assets/images/ACLCv1.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(
+                      Icons.school,
+                      color: Color(0xFF3B82F6),
+                      size: 40,
+                    );
+                  },
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Title
+            const Text(
+              'Profile Updated!',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Subtitle
+            const Text(
+              'Your profile has been successfully updated',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Profile Details Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // First Name
+                  _DetailRow(
+                    label: 'First Name',
+                    value: _getUpdatedValue('firstname'),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Last Name
+                  _DetailRow(
+                    label: 'Last Name',
+                    value: _getUpdatedValue('lastname'),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Email
+                  _DetailRow(
+                    label: 'Email',
+                    value: _getUpdatedValue('email'),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Divider
+                  Container(
+                    height: 1,
+                    color: Colors.white.withOpacity(0.3),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Created At
+                  _DetailRow(
+                    label: 'Created At',
+                    value: _getUpdatedValue('createdAt'),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Updated At
+                  _DetailRow(
+                    label: 'Updated At',
+                    value: _getUpdatedValue('updatedAt'),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Done Button
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF3B82F6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Detail Row Widget for Profile Updated Dialog
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+            textAlign: TextAlign.end,
+          ),
+        ),
+      ],
     );
   }
 }
