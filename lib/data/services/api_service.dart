@@ -11,21 +11,23 @@ class ApiService {
   // Android Emulator: Use 10.0.2.2 (maps to host machine's localhost)
   // Physical Device: Use your computer's IP address on the local network
   // Web: Use localhost
-  
+
   // Your computer's IP address on the local network (for physical devices)
   // Replace with your actual IP: Run 'ipconfig' on Windows
-  static const String localNetworkIp = '192.168.254.106'; // Your IP from ipconfig
-  
+  static const String localNetworkIp =
+      '192.168.254.106'; // Your IP from ipconfig
+
   // Backend server configuration
   // For development with physical devices, use HTTP to avoid SSL certificate issues
   // Change to true and port 8081 for HTTPS in production
-  static const bool useHttps = false; // Use HTTP for development (avoids self-signed cert issues)
+  static const bool useHttps =
+      false; // Use HTTP for development (avoids self-signed cert issues)
   static const int serverPort = 8080; // HTTP port (8081 for HTTPS)
-  
+
   static String get baseUrl {
     final protocol = useHttps ? 'https' : 'http';
     final port = serverPort;
-    
+
     if (kIsWeb) {
       // Web platform - use localhost
       return '$protocol://localhost:$port';
@@ -42,42 +44,47 @@ class ApiService {
       return '$protocol://localhost:$port';
     }
   }
-  
+
   final StorageService _storageService = StorageService();
 
   Future<LoginResponse> login(LoginRequest request) async {
     try {
       print('Attempting login to: $baseUrl/api/account/login');
       print('Request body: ${json.encode(request.toJson())}');
-      
+
       final url = Uri.parse('$baseUrl/api/account/login');
-      
+
       // Create a client that doesn't follow redirects automatically
       // This allows us to handle 307 redirects manually
       final client = http.Client();
-      
+
       try {
-        final response = await client.post(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: json.encode(request.toJson()),
-        ).timeout(
-          const Duration(seconds: 10),
-          onTimeout: () {
-            throw Exception('Connection timeout');
-          },
-        );
-        
+        final response = await client
+            .post(
+              url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: json.encode(request.toJson()),
+            )
+            .timeout(
+              const Duration(seconds: 10),
+              onTimeout: () {
+                throw Exception('Connection timeout');
+              },
+            );
+
         print('Response status: ${response.statusCode}');
         print('Response headers: ${response.headers}');
         print('Response body: ${response.body}');
-        
+
         // Handle 307 redirect - backend redirecting HTTP to HTTPS
-        if (response.statusCode == 307 || response.statusCode == 301 || response.statusCode == 302) {
-          final location = response.headers['location'] ?? response.headers['Location'];
+        if (response.statusCode == 307 ||
+            response.statusCode == 301 ||
+            response.statusCode == 302) {
+          final location =
+              response.headers['location'] ?? response.headers['Location'];
           if (location != null) {
             print('Redirect detected to: $location');
             // If redirected to HTTPS and we're using HTTP, try HTTP endpoint directly
@@ -85,12 +92,13 @@ class ApiService {
               // Backend is redirecting HTTP to HTTPS - we need to use HTTPS or fix backend
               return LoginResponse(
                 success: false,
-                message: 'Backend requires HTTPS. Please configure backend to accept HTTP in development.',
+                message:
+                    'Backend requires HTTPS. Please configure backend to accept HTTP in development.',
               );
             }
           }
         }
-        
+
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
           return LoginResponse.fromJson(data);
@@ -125,7 +133,7 @@ class ApiService {
   Future<http.Response> get(String endpoint) async {
     final url = Uri.parse('$baseUrl$endpoint');
     final headers = await _getHeaders();
-    
+
     final response = await http.get(url, headers: headers);
     return response;
   }
@@ -134,7 +142,7 @@ class ApiService {
   Future<http.Response> post(String endpoint, Map<String, dynamic> body) async {
     final url = Uri.parse('$baseUrl$endpoint');
     final headers = await _getHeaders();
-    
+
     final response = await http.post(
       url,
       headers: headers,
@@ -149,7 +157,7 @@ class ApiService {
   Future<Map<String, dynamic>> getStudentProfile() async {
     try {
       final token = await _storageService.getAccessToken();
-      
+
       if (token == null) {
         return {
           'success': false,
@@ -174,10 +182,7 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return {
-          'success': true,
-          'data': data,
-        };
+        return {'success': true, 'data': data};
       } else if (response.statusCode == 401) {
         return {
           'success': false,
@@ -191,10 +196,7 @@ class ApiService {
       }
     } catch (e) {
       print('💥 Error in getStudentProfile: $e');
-      return {
-        'success': false,
-        'error': 'Error: $e',
-      };
+      return {'success': false, 'error': 'Error: $e'};
     }
   }
 
@@ -212,7 +214,7 @@ class ApiService {
   }) async {
     try {
       final token = await _storageService.getAccessToken();
-      
+
       if (token == null) {
         return {
           'success': false,
@@ -222,18 +224,20 @@ class ApiService {
 
       final url = Uri.parse('$baseUrl/api/account/profile');
       print('🌐 Updating account profile at: $url');
-      
+
       // Build update data - only include non-null fields
       final Map<String, dynamic> updateData = {};
       if (firstname != null) updateData['firstname'] = firstname;
       if (lastname != null) updateData['lastname'] = lastname;
       if (email != null) updateData['email'] = email;
-      if (currentPassword != null) updateData['currentPassword'] = currentPassword;
+      if (currentPassword != null)
+        updateData['currentPassword'] = currentPassword;
       if (newPassword != null) updateData['newPassword'] = newPassword;
-      if (confirmNewPassword != null) updateData['confirmNewPassword'] = confirmNewPassword;
+      if (confirmNewPassword != null)
+        updateData['confirmNewPassword'] = confirmNewPassword;
       if (sectionId != null) updateData['sectionId'] = sectionId;
       if (isRegular != null) updateData['isRegular'] = isRegular;
-      
+
       print('📝 Update data: $updateData');
 
       final response = await http.patch(
@@ -280,12 +284,56 @@ class ApiService {
       }
     } catch (e) {
       print('💥 Error in updateAccountProfile: $e');
-      return {
-        'success': false,
-        'error': 'Error: $e',
-      };
+      return {'success': false, 'error': 'Error: $e'};
     }
   }
 
-}
+  // ==================== STUDENT ENROLLMENT METHODS ====================
 
+  /// Get student subjects
+  Future<Map<String, dynamic>> getStudentSubjects() async {
+    try {
+      final token = await _storageService.getAccessToken();
+
+      if (token == null) {
+        return {
+          'success': false,
+          'error': 'Not authenticated. Please login again.',
+        };
+      }
+
+      final url = Uri.parse('$baseUrl/api/students/my-subjects');
+      print('🌐 Fetching subjects from: $url');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      print('📊 Subjects Response Status: ${response.statusCode}');
+      print('📝 Subjects Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return {'success': true, 'data': data};
+      } else if (response.statusCode == 401) {
+        return {
+          'success': false,
+          'error': 'Session expired. Please login again.',
+        };
+      } else {
+        return {
+          'success': false,
+          'error': 'Failed to load subjects: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('💥 Error in getStudentSubjects: $e');
+      return {'success': false, 'error': 'Error: $e'};
+    }
+  }
+}

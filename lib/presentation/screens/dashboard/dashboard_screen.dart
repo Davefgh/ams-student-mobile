@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../scanner/scanner_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../../data/services/api_service.dart';
+import '../../../data/models/student_enrollment.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -35,7 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -59,7 +61,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 33, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF3B82F6) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -70,14 +72,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Icon(
               icon,
               color: isSelected ? Colors.white : Colors.grey[400],
-              size: 24,
+              size: 20,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.grey[400],
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
@@ -96,26 +98,40 @@ class DashboardHomeScreen extends StatefulWidget {
 }
 
 class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
-  // Mock data - Single subject example
-  final Map<String, dynamic> studentSubject = {
-    'subject': {'id': 1, 'name': 'Data Structures and Algorithms', 'code': 'CS201'},
-    'schedule': {
-      'timeIn': {'hour': 8, 'minute': 0},
-      'timeOut': {'hour': 10, 'minute': 0},
-      'dayOfWeek': 'Monday',
-    },
-    'instructor': {'firstname': 'John', 'lastname': 'Smith'},
-    'classroom': {'name': 'Room 301'},
-    'attendanceRate': 85,
-    'totalClasses': 48,
-    'attended': 42,
-    'absent': 6,
-  };
+  final ApiService _apiService = ApiService();
+  bool _isLoading = true;
+  List<StudentSubject> _subjects = [];
+  String? _error;
 
-  String _formatTime(Map<String, dynamic> timeObj) {
-    final hour = timeObj['hour'].toString().padLeft(2, '0');
-    final minute = timeObj['minute'].toString().padLeft(2, '0');
-    return '$hour:$minute';
+  @override
+  void initState() {
+    super.initState();
+    _fetchSubjects();
+  }
+
+  Future<void> _fetchSubjects() async {
+    try {
+      final response = await _apiService.getStudentSubjects();
+      if (response['success'] == true) {
+        final List<dynamic> data = response['data'];
+        setState(() {
+          _subjects = data
+              .map((json) => StudentSubject.fromJson(json))
+              .toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+          _error = response['error'] ?? 'Failed to load subjects';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = 'Error: $e';
+      });
+    }
   }
 
   @override
@@ -125,11 +141,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1E3A8A),
-            Color(0xFF3B82F6),
-            Color(0xFF60A5FA),
-          ],
+          colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6), Color(0xFF60A5FA)],
         ),
       ),
       child: SafeArea(
@@ -137,17 +149,31 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
           children: [
             _buildHeader(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildStatsCards(),
-                    const SizedBox(height: 24),
-                    _buildCurrentSubject(),
-                  ],
-                ),
-              ),
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    )
+                  : _error != null
+                  ? Center(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    )
+                  : _subjects.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No subjects enrolled.',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(20),
+                      itemCount: _subjects.length,
+                      itemBuilder: (context, index) {
+                        return _buildSubjectCard(_subjects[index]);
+                      },
+                    ),
             ),
           ],
         ),
@@ -169,10 +195,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
           SizedBox(
             width: 45,
             height: 45,
-            child: Image.asset(
-              'assets/images/ACLCv1.png',
-              fit: BoxFit.contain,
-            ),
+            child: Image.asset('assets/images/ACLCv1.png', fit: BoxFit.contain),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -189,10 +212,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
                 ),
                 Text(
                   'Student Portal',
-                  style: TextStyle(
-                    color: Color(0xFFBFDBFE),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Color(0xFFBFDBFE), fontSize: 12),
                 ),
               ],
             ),
@@ -200,7 +220,10 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
           Stack(
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications_rounded, color: Colors.white),
+                icon: const Icon(
+                  Icons.notifications_rounded,
+                  color: Colors.white,
+                ),
                 onPressed: () {},
               ),
               Positioned(
@@ -222,43 +245,9 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
     );
   }
 
-  Widget _buildStatsCards() {
-    final schedule = studentSubject['schedule'];
-    
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      childAspectRatio: 1.1,
-      children: [
-        _buildStatCard(
-          'Total Classes',
-          '${studentSubject['totalClasses']}',
-          Icons.calendar_month_rounded,
-        ),
-        _buildStatCard(
-          'Attended',
-          '${studentSubject['attended']}',
-          Icons.check_circle_rounded,
-        ),
-        _buildStatCard(
-          'Absent',
-          '${studentSubject['absent']}',
-          Icons.cancel_rounded,
-        ),
-        _buildScheduleCard(
-          'Schedule',
-          '${schedule['dayOfWeek']}\n${_formatTime(schedule['timeIn'])} - ${_formatTime(schedule['timeOut'])}',
-          Icons.schedule_rounded,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String label, String value, IconData icon) {
+  Widget _buildSubjectCard(StudentSubject studentSubject) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -272,163 +261,70 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
         ],
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.black, size: 32),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF6B7280),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScheduleCard(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.black, size: 32),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF6B7280),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrentSubject() {
-    final subject = studentSubject['subject'];
-    final schedule = studentSubject['schedule'];
-    final instructor = studentSubject['instructor'];
-    final classroom = studentSubject['classroom'];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Current Subject',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-                              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      subject['code'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                subject['name'],
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  studentSubject.subject.code,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              const SizedBox(height: 20),
-              _buildSubjectInfoRow(
-                Icons.person_rounded,
-                'Instructor',
-                '${instructor['firstname']} ${instructor['lastname']}',
-              ),
-              const SizedBox(height: 12),
-              _buildSubjectInfoRow(
-                Icons.schedule_rounded,
-                'Schedule',
-                '${schedule['dayOfWeek']} ${_formatTime(schedule['timeIn'])} - ${_formatTime(schedule['timeOut'])}',
-              ),
-              const SizedBox(height: 12),
-              _buildSubjectInfoRow(
-                Icons.location_on_rounded,
-                'Classroom',
-                classroom['name'],
+              Text(
+                studentSubject.schedule.dayOfWeek,
+                style: const TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          Text(
+            studentSubject.subject.name,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildSubjectInfoRow(
+            Icons.access_time_rounded,
+            'Time',
+            '${studentSubject.schedule.timeIn} - ${studentSubject.schedule.timeOut}',
+          ),
+          const SizedBox(height: 12),
+          _buildSubjectInfoRow(
+            Icons.person_rounded,
+            'Instructor',
+            studentSubject.instructor.fullName,
+          ),
+          const SizedBox(height: 12),
+          _buildSubjectInfoRow(
+            Icons.meeting_room_rounded,
+            'Room',
+            studentSubject.classroom.name,
+          ),
+        ],
+      ),
     );
   }
 
