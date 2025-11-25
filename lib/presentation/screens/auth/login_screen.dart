@@ -39,19 +39,10 @@ class _LoginScreenState extends State<LoginScreen> {
         _usernameController.text.trim(),
         _passwordController.text,
       );
-      
+
       if (!mounted) return;
-      
+
       if (response.success) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response.message),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        
         // Navigate to dashboard
         Navigator.pushReplacementNamed(context, AppRouter.dashboard);
       } else {
@@ -92,11 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1E3A8A),
-              Color(0xFF3B82F6),
-              Color(0xFF60A5FA),
-            ],
+            colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6), Color(0xFF60A5FA)],
           ),
         ),
         child: SafeArea(
@@ -109,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Logo
                   _buildLogo(),
                   const SizedBox(height: 32),
-                  
+
                   // Title
                   const Text(
                     'Attendance Monitoring',
@@ -127,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 48),
-                  
+
                   // Login Form Card with Glassmorphism
                   ClipRRect(
                     borderRadius: BorderRadius.circular(24),
@@ -165,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 32),
-                              
+
                               // Username Field
                               TextFormField(
                                 controller: _usernameController,
@@ -222,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 },
                               ),
                               const SizedBox(height: 20),
-                              
+
                               // Password Field
                               TextFormField(
                                 controller: _passwordController,
@@ -246,7 +233,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                     onPressed: () {
                                       setState(() {
-                                        _isPasswordVisible = !_isPasswordVisible;
+                                        _isPasswordVisible =
+                                            !_isPasswordVisible;
                                       });
                                     },
                                   ),
@@ -296,12 +284,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                 },
                               ),
                               const SizedBox(height: 32),
-                              
+
                               // Login Button
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(15),
                                 child: BackdropFilter(
-                                  filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 3,
+                                    sigmaY: 3,
+                                  ),
                                   child: Container(
                                     height: 56,
                                     decoration: BoxDecoration(
@@ -327,12 +318,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ],
                                     ),
                                     child: ElevatedButton(
-                                      onPressed: _isLoading ? null : _handleLogin,
+                                      onPressed: _isLoading
+                                          ? null
+                                          : _handleLogin,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(15),
+                                          borderRadius: BorderRadius.circular(
+                                            15,
+                                          ),
                                         ),
                                       ),
                                       child: _isLoading
@@ -375,10 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return SizedBox(
       width: 180,
       height: 180,
-      child: Image.asset(
-        'assets/images/ACLCv1.png',
-        fit: BoxFit.contain,
-      ),
+      child: Image.asset('assets/images/ACLCv1.png', fit: BoxFit.contain),
     );
   }
 }

@@ -4,6 +4,7 @@ class LoginResponse {
   final String? accessToken;
   final String? refreshToken;
   final String? user;
+  final String? role;
 
   LoginResponse({
     required this.success,
@@ -11,6 +12,7 @@ class LoginResponse {
     this.accessToken,
     this.refreshToken,
     this.user,
+    this.role,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class LoginResponse {
       accessToken: json['accessToken'],
       refreshToken: json['refreshToken'],
       user: json['user'],
+      role: json['role'],
     );
   }
 
@@ -30,8 +33,7 @@ class LoginResponse {
       'accessToken': accessToken,
       'refreshToken': refreshToken,
       'user': user,
+      'role': role,
     };
   }
 }
-
-

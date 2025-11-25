@@ -8,20 +8,29 @@ class AuthRepository {
   final StorageService _storageService = StorageService();
 
   Future<LoginResponse> login(String username, String password) async {
-    final request = LoginRequest(
-      username: username,
-      password: password,
-    );
+    final request = LoginRequest(username: username, password: password);
 
     final response = await _apiService.login(request);
 
-    if (response.success && response.accessToken != null) {
-      // Save tokens to local storage
-      await _storageService.saveTokens(
-        accessToken: response.accessToken!,
-        refreshToken: response.refreshToken ?? '',
-        username: response.user ?? username,
-      );
+    // Check if login was successful
+    if (response.success) {
+      // Validate role - only allow Student
+      if (response.role != 'Student') {
+        // Return generic error message for security
+        return LoginResponse(
+          success: false,
+          message: 'Invalid username or password',
+        );
+      }
+
+      if (response.accessToken != null) {
+        // Save tokens to local storage
+        await _storageService.saveTokens(
+          accessToken: response.accessToken!,
+          refreshToken: response.refreshToken ?? '',
+          username: response.user ?? username,
+        );
+      }
     }
 
     return response;
@@ -39,5 +48,3 @@ class AuthRepository {
     return await _storageService.getUsername();
   }
 }
-
-
