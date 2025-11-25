@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../scanner/scanner_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../../data/services/api_service.dart';
@@ -102,35 +103,46 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
   bool _isLoading = true;
   List<StudentSubject> _subjects = [];
   String? _error;
+  String _studentName = 'Student';
 
   @override
   void initState() {
     super.initState();
-    _fetchSubjects();
+    _loadData();
   }
 
-  Future<void> _fetchSubjects() async {
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
     try {
-      final response = await _apiService.getStudentSubjects();
-      if (response['success'] == true) {
-        final List<dynamic> data = response['data'];
+      // Fetch Profile
+      final profileResponse = await _apiService.getStudentProfile();
+      if (profileResponse['success'] == true) {
+        final data = profileResponse['data'];
+        setState(() {
+          _studentName = data['firstname'] ?? 'Student';
+        });
+      }
+
+      // Fetch Subjects
+      final subjectsResponse = await _apiService.getStudentSubjects();
+      if (subjectsResponse['success'] == true) {
+        final List<dynamic> data = subjectsResponse['data'];
         setState(() {
           _subjects = data
               .map((json) => StudentSubject.fromJson(json))
               .toList();
-          _isLoading = false;
         });
       } else {
         setState(() {
-          _isLoading = false;
-          _error = response['error'] ?? 'Failed to load subjects';
+          _error = subjectsResponse['error'] ?? 'Failed to load subjects';
         });
       }
     } catch (e) {
       setState(() {
-        _isLoading = false;
         _error = 'Error: $e';
       });
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -149,31 +161,30 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
           children: [
             _buildHeader(),
             Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    )
-                  : _error != null
-                  ? Center(
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    )
-                  : _subjects.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No subjects enrolled.',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(20),
-                      itemCount: _subjects.length,
-                      itemBuilder: (context, index) {
-                        return _buildSubjectCard(_subjects[index]);
-                      },
-                    ),
+              child: RefreshIndicator(
+                onRefresh: _loadData,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildWelcomeSection(),
+                      const SizedBox(height: 24),
+                      _buildQuickActionsGrid(),
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('My Subjects'),
+                      const SizedBox(height: 12),
+                      _buildSubjectsList(),
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('Announcements'),
+                      const SizedBox(height: 12),
+                      _buildAnnouncements(),
+                      const SizedBox(height: 40), // Bottom padding
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -242,6 +253,180 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildWelcomeSection() {
+    final now = DateTime.now();
+    final dateString = DateFormat('EEEE, MMMM d').format(now);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          dateString,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Hello, $_studentName!',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionsGrid() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.5,
+      children: [
+        _buildActionCard(
+          'Scan Attendance',
+          Icons.qr_code_scanner_rounded,
+          const Color(0xFF10B981),
+          () {
+            // Navigate to Scanner tab (index 1)
+            final dashboardState = context
+                .findAncestorStateOfType<_DashboardScreenState>();
+            dashboardState?.setState(() {
+              dashboardState._currentIndex = 1;
+            });
+          },
+        ),
+        _buildActionCard(
+          'My Profile',
+          Icons.person_rounded,
+          const Color(0xFFF59E0B),
+          () {
+            // Navigate to Profile tab (index 2)
+            final dashboardState = context
+                .findAncestorStateOfType<_DashboardScreenState>();
+            dashboardState?.setState(() {
+              dashboardState._currentIndex = 2;
+            });
+          },
+        ),
+        _buildActionCard(
+          'Class Schedule',
+          Icons.calendar_today_rounded,
+          const Color(0xFF8B5CF6),
+          () {}, // Placeholder
+        ),
+        _buildActionCard(
+          'History',
+          Icons.history_rounded,
+          const Color(0xFFEC4899),
+          () {}, // Placeholder
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionCard(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const Spacer(),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1F2937),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _buildSubjectsList() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
+    }
+    if (_error != null) {
+      return Text(_error!, style: const TextStyle(color: Colors.white));
+    }
+    if (_subjects.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: const Text(
+          'No subjects enrolled yet.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _subjects.length,
+      itemBuilder: (context, index) {
+        return _buildSubjectCard(_subjects[index]);
+      },
     );
   }
 
@@ -322,6 +507,94 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
             Icons.meeting_room_rounded,
             'Room',
             studentSubject.classroom.name,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnnouncements() {
+    return SizedBox(
+      height: 140,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _buildAnnouncementCard(
+            'Midterm Exams',
+            'Schedule for midterm exams has been released.',
+            const Color(0xFFEF4444),
+          ),
+          const SizedBox(width: 16),
+          _buildAnnouncementCard(
+            'Holiday Notice',
+            'No classes on Friday due to National Holiday.',
+            const Color(0xFF10B981),
+          ),
+          const SizedBox(width: 16),
+          _buildAnnouncementCard(
+            'System Maintenance',
+            'Server maintenance scheduled for Sunday 2AM.',
+            const Color(0xFFF59E0B),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnnouncementCard(String title, String description, Color color) {
+    return Container(
+      width: 260,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Notice',
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF6B7280),
+              height: 1.4,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
