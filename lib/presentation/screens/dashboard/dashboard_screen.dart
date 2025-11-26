@@ -416,8 +416,8 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
 
   Widget _buildSubjectCard(StudentSubject studentSubject) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -450,7 +450,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
                   studentSubject.subject.code,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -459,34 +459,42 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
                 studentSubject.schedule.dayOfWeek,
                 style: const TextStyle(
                   color: Color(0xFF6B7280),
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             studentSubject.subject.name,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 17,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1F2937),
             ),
           ),
-          const SizedBox(height: 20),
-          _buildSubjectInfoRow(
-            Icons.access_time_rounded,
-            'Time',
-            '${studentSubject.schedule.timeIn} - ${studentSubject.schedule.timeOut}',
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSubjectInfoRow(
+                  Icons.access_time_rounded,
+                  'Time',
+                  '${studentSubject.schedule.timeIn} - ${studentSubject.schedule.timeOut}',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSubjectInfoRow(
+                  Icons.person_rounded,
+                  'Instructor',
+                  studentSubject.instructor.fullName,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          _buildSubjectInfoRow(
-            Icons.person_rounded,
-            'Instructor',
-            studentSubject.instructor.fullName,
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _buildSubjectInfoRow(
             Icons.meeting_room_rounded,
             'Room',
@@ -501,12 +509,12 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
             color: const Color(0xFFF5F5F5),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, size: 18, color: Colors.black),
+          child: Icon(icon, size: 17, color: Colors.black),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -516,7 +524,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 10.5,
                   color: Color(0xFF6B7280),
                   fontWeight: FontWeight.w500,
                 ),
@@ -525,7 +533,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF1F2937),
                 ),
