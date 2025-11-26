@@ -115,11 +115,48 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
     setState(() => _isLoading = true);
     try {
       // Fetch Profile
+      print('Fetching student profile...');
       final profileResponse = await _apiService.getStudentProfile();
+      print('Profile Response: $profileResponse');
+
       if (profileResponse['success'] == true) {
         final data = profileResponse['data'];
+        print('Profile Data Type: ${data.runtimeType}');
+        print('Profile Data: $data');
+
+        if (data is Map) {
+          print('Data Keys: ${data.keys}');
+          if (data.containsKey('studentProfile')) {
+            print('studentProfile: ${data['studentProfile']}');
+          }
+        }
+
         setState(() {
-          _studentName = data['firstname'] ?? 'Student';
+          String? newName;
+
+          // Try to find name in various locations
+          if (data['studentProfile'] != null) {
+            final profile = data['studentProfile'];
+            newName = profile['firstname'] ?? profile['firstName'];
+          }
+
+          if (newName == null && data['firstname'] != null) {
+            newName = data['firstname'];
+          }
+
+          if (newName == null && data['firstName'] != null) {
+            newName = data['firstName'];
+          }
+
+          if (newName == null && data['user'] != null) {
+            newName = data['user']['firstname'] ?? data['user']['firstName'];
+          }
+
+          if (newName != null) {
+            _studentName = newName!;
+          }
+
+          print('Final student name set to: $_studentName');
         });
       }
 
@@ -138,6 +175,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
         });
       }
     } catch (e) {
+      print('Error loading data: $e');
       setState(() {
         _error = 'Error: $e';
       });
@@ -176,10 +214,6 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
                       _buildSectionTitle('My Subjects'),
                       const SizedBox(height: 12),
                       _buildSubjectsList(),
-                      const SizedBox(height: 24),
-                      _buildSectionTitle('Announcements'),
-                      const SizedBox(height: 12),
-                      _buildAnnouncements(),
                       const SizedBox(height: 40), // Bottom padding
                     ],
                   ),
@@ -193,14 +227,8 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.2)),
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
       child: Row(
         children: [
           SizedBox(
@@ -209,47 +237,13 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
             child: Image.asset('assets/images/ACLCv1.png', fit: BoxFit.contain),
           ),
           const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Attendance Monitoring',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Student Portal',
-                  style: TextStyle(color: Color(0xFFBFDBFE), fontSize: 12),
-                ),
-              ],
+          const Text(
+            'Dashboard',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
-          ),
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.notifications_rounded,
-                  color: Colors.white,
-                ),
-                onPressed: () {},
-              ),
-              Positioned(
-                right: 10,
-                top: 10,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -259,6 +253,8 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
   Widget _buildWelcomeSection() {
     final now = DateTime.now();
     final dateString = DateFormat('EEEE, MMMM d').format(now);
+    // Get first name only
+    final firstName = _studentName.split(' ').first;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,7 +269,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Hello, $_studentName!',
+          'Hello, $firstName',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 24,
@@ -318,18 +314,6 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
               dashboardState._currentIndex = 2;
             });
           },
-        ),
-        _buildActionCard(
-          'Class Schedule',
-          Icons.calendar_today_rounded,
-          const Color(0xFF8B5CF6),
-          () {}, // Placeholder
-        ),
-        _buildActionCard(
-          'History',
-          Icons.history_rounded,
-          const Color(0xFFEC4899),
-          () {}, // Placeholder
         ),
       ],
     );
@@ -507,94 +491,6 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
             Icons.meeting_room_rounded,
             'Room',
             studentSubject.classroom.name,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnnouncements() {
-    return SizedBox(
-      height: 140,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _buildAnnouncementCard(
-            'Midterm Exams',
-            'Schedule for midterm exams has been released.',
-            const Color(0xFFEF4444),
-          ),
-          const SizedBox(width: 16),
-          _buildAnnouncementCard(
-            'Holiday Notice',
-            'No classes on Friday due to National Holiday.',
-            const Color(0xFF10B981),
-          ),
-          const SizedBox(width: 16),
-          _buildAnnouncementCard(
-            'System Maintenance',
-            'Server maintenance scheduled for Sunday 2AM.',
-            const Color(0xFFF59E0B),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnnouncementCard(String title, String description, Color color) {
-    return Container(
-      width: 260,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Notice',
-              style: TextStyle(
-                color: color,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF6B7280),
-              height: 1.4,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

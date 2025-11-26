@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../routes/app_router.dart';
+import '../../../data/services/api_service.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -11,36 +13,62 @@ class ScannerScreen extends StatefulWidget {
   State<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProviderStateMixin {
+class _ScannerScreenState extends State<ScannerScreen>
+    with SingleTickerProviderStateMixin {
   late MobileScannerController cameraController;
-  
+  final ApiService _apiService = ApiService();
+
   bool _isProcessing = false;
   bool _hasScanned = false;
+  int? _studentId;
   late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
+    _fetchStudentId();
+
     // Initialize camera with better settings for clarity
     cameraController = MobileScannerController(
       detectionSpeed: DetectionSpeed.noDuplicates,
       facing: CameraFacing.back,
     );
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     )..repeat(); // This makes it loop infinitely
-    
+
     // Prevent screenshots and screen recording (no visible banner)
     _enableScreenshotPrevention();
-    
+
     // Start camera and ensure proper initialization
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         cameraController.start();
       }
     });
+  }
+
+  Future<void> _fetchStudentId() async {
+    try {
+      final profile = await _apiService.getStudentProfile();
+      if (profile['success'] == true && mounted) {
+        final data = profile['data'];
+        // Handle various API response structures to find ID
+        if (data['id'] != null) {
+          _studentId = data['id'];
+        } else if (data['studentProfile'] != null &&
+            data['studentProfile']['id'] != null) {
+          _studentId = data['studentProfile']['id'];
+        } else if (data['user'] != null && data['user']['id'] != null) {
+          _studentId = data['user']['id'];
+        }
+        print('✅ Fetched Student ID: $_studentId');
+      }
+    } catch (e) {
+      print('❌ Error fetching student ID: $e');
+    }
   }
 
   // Method channel for screenshot prevention
@@ -76,6 +104,11 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
   Future<void> _handleQRCodeScanned(String qrData) async {
     if (_isProcessing || _hasScanned) return;
 
+    if (_studentId == null) {
+      _showErrorDialog('Student ID not found. Please try again.');
+      return;
+    }
+
     setState(() {
       _isProcessing = true;
       _hasScanned = true;
@@ -84,15 +117,13 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
     try {
       // Parse QR code data
       final Map<String, dynamic> qrCodeData = jsonDecode(qrData);
-      
+
       print('📱 QR Code Scanned: $qrCodeData');
-      
+
       // Extract data from QR code
-      final int scheduleId = qrCodeData['scheduleId'];
-      final int sectionId = qrCodeData['sectionId'];
-      final int actualRoomId = qrCodeData['actualRoomId'];
+      // We only need uniqueHash for the API, but we can log others
       final String uniqueHash = qrCodeData['uniqueHash'];
-      
+
       // Show processing dialog
       if (mounted) {
         showDialog(
@@ -118,24 +149,24 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
 
       // Submit attendance to backend
       final result = await _submitAttendance(
-        scheduleId: scheduleId,
-        sectionId: sectionId,
-        actualRoomId: actualRoomId,
         uniqueHash: uniqueHash,
+        studentId: _studentId!,
       );
 
       if (mounted) {
         Navigator.of(context).pop(); // Close processing dialog
-        
+
         if (result['success']) {
-          _showSuccessDialog(result['message'] ?? 'Attendance recorded successfully!');
+          _showSuccessDialog(
+            result['message'] ?? 'Attendance recorded successfully!',
+          );
         } else {
           _showErrorDialog(result['message'] ?? 'Failed to record attendance');
         }
       }
     } catch (e) {
       print('❌ Error processing QR code: $e');
-      
+
       if (mounted) {
         Navigator.of(context).pop(); // Close processing dialog if open
         _showErrorDialog('Invalid QR code format');
@@ -154,64 +185,13 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
   }
 
   Future<Map<String, dynamic>> _submitAttendance({
-    required int scheduleId,
-    required int sectionId,
-    required int actualRoomId,
     required String uniqueHash,
+    required int studentId,
   }) async {
-    try {
-      // TODO: Replace with your actual API call
-      // Example:
-      // final response = await http.post(
-      //   Uri.parse('https://localhost:8081/api/Attendance/scan'),
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': 'Bearer $token',
-      //   },
-      //   body: jsonEncode({
-      //     'scheduleId': scheduleId,
-      //     'sectionId': sectionId,
-      //     'actualRoomId': actualRoomId,
-      //     'uniqueHash': uniqueHash,
-      //   }),
-      // );
-      
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
-      
-      print('📤 Submitting attendance:');
-      print('   Schedule ID: $scheduleId');
-      print('   Section ID: $sectionId');
-      print('   Room ID: $actualRoomId');
-      print('   Hash: $uniqueHash');
-      
-      // Mock success response
-      return {
-        'success': true,
-        'message': 'Attendance recorded successfully!',
-      };
-      
-      // Handle actual API response:
-      // if (response.statusCode == 200) {
-      //   final data = jsonDecode(response.body);
-      //   return {
-      //     'success': true,
-      //     'message': data['message'] ?? 'Attendance recorded successfully!',
-      //   };
-      // } else {
-      //   final data = jsonDecode(response.body);
-      //   return {
-      //     'success': false,
-      //     'message': data['message'] ?? 'Failed to record attendance',
-      //   };
-      // }
-    } catch (e) {
-      print('❌ API Error: $e');
-      return {
-        'success': false,
-        'message': 'Connection error. Please try again.',
-      };
-    }
+    return await _apiService.scanQrCode(
+      qrHash: uniqueHash,
+      studentId: studentId,
+    );
   }
 
   void _showSuccessDialog(String message) {
@@ -247,10 +227,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF6B7280),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
             ),
           ],
         ),
@@ -314,10 +291,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF6B7280),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
             ),
           ],
         ),
@@ -368,10 +342,10 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
               }
             },
           ),
-          
+
           // Overlay with scanning frame
           _buildScannerOverlay(),
-          
+
           // Top bar
           SafeArea(
             child: Padding(
@@ -380,7 +354,11 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                     onPressed: () {
                       Navigator.of(context).pushNamedAndRemoveUntil(
                         AppRouter.dashboard,
@@ -402,7 +380,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
               ),
             ),
           ),
-          
+
           // Bottom instruction
           Positioned(
             bottom: 0,
@@ -414,10 +392,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.8),
-                    Colors.transparent,
-                  ],
+                  colors: [Colors.black.withOpacity(0.8), Colors.transparent],
                 ),
               ),
               child: Column(
@@ -451,6 +426,22 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
           ),
         ],
       ),
+      floatingActionButton: kDebugMode
+          ? FloatingActionButton(
+              onPressed: () {
+                _handleQRCodeScanned(
+                  jsonEncode({
+                    'scheduleId': 1,
+                    'sectionId': 1,
+                    'actualRoomId': 1,
+                    'uniqueHash':
+                        'debug-hash-${DateTime.now().millisecondsSinceEpoch}',
+                  }),
+                );
+              },
+              child: const Icon(Icons.bug_report),
+            )
+          : null,
     );
   }
 
@@ -472,7 +463,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
               _buildCorner(Alignment.topRight, true, false),
               _buildCorner(Alignment.bottomLeft, false, true),
               _buildCorner(Alignment.bottomRight, false, false),
-              
+
               // Scanning line animation (continuous loop)
               if (!_hasScanned)
                 AnimatedBuilder(

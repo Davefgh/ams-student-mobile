@@ -336,4 +336,66 @@ class ApiService {
       return {'success': false, 'error': 'Error: $e'};
     }
   }
+  // ==================== QR CODE METHODS ====================
+
+  /// Scan QR Code
+  Future<Map<String, dynamic>> scanQrCode({
+    required String qrHash,
+    required int studentId,
+  }) async {
+    try {
+      final token = await _storageService.getAccessToken();
+
+      if (token == null) {
+        return {
+          'success': false,
+          'error': 'Not authenticated. Please login again.',
+        };
+      }
+
+      final url = Uri.parse('$baseUrl/api/QrCode/scan');
+      print('🌐 Scanning QR code at: $url');
+      print('📝 Scan Data: qrHash=$qrHash, studentId=$studentId');
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: json.encode({'qrHash': qrHash, 'studentId': studentId}),
+      );
+
+      print('📊 Scan Response Status: ${response.statusCode}');
+      print('📝 Scan Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // API returns 200 for success
+        // The response body might be empty or contain success message
+        // Based on user screenshot, it returns 200 Success
+        return {
+          'success': true,
+          'message': 'Attendance recorded successfully!',
+        };
+      } else {
+        // Try to parse error message
+        String errorMessage = 'Failed to record attendance';
+        try {
+          final errorData = json.decode(response.body);
+          if (errorData['message'] != null) {
+            errorMessage = errorData['message'];
+          }
+        } catch (_) {
+          // If response is not JSON, use default error or status code
+          errorMessage = 'Error: ${response.statusCode}';
+        }
+
+        return {'success': false, 'message': errorMessage};
+      }
+    } catch (e) {
+      print('💥 Error in scanQrCode: $e');
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
 }
