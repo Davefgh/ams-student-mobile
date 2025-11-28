@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
+
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../routes/app_router.dart';
 import '../../../data/services/api_service.dart';
@@ -102,29 +102,55 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 
   Future<void> _handleQRCodeScanned(String qrData) async {
+    final now = DateTime.now();
+
+    // Debounce scans
+    if (_lastScanTime != null &&
+        now.difference(_lastScanTime!) < _scanDebounce) {
+      return;
+    }
+
     if (_isProcessing || _hasScanned) return;
 
     if (_studentId == null) {
-      _showErrorDialog('Student ID not found. Please try again.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Student ID not found. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     setState(() {
       _isProcessing = true;
       _hasScanned = true;
+      _lastScanTime = now;
     });
 
     try {
-      // Parse QR code data
-      final Map<String, dynamic> qrCodeData = jsonDecode(qrData);
+      String uniqueHash;
 
-      print('📱 QR Code Scanned: $qrCodeData');
+      // 1. Try to parse as JSON first
+      try {
+        final Map<String, dynamic> qrCodeData = jsonDecode(qrData);
+        if (qrCodeData.containsKey('uniqueHash')) {
+          uniqueHash = qrCodeData['uniqueHash'];
+          print('📱 QR Code (JSON): $qrCodeData');
+        } else {
+          // JSON valid but no uniqueHash? Treat whole JSON string as hash or fallback?
+          // Let's assume if it's JSON but no uniqueHash, it might be the wrong QR,
+          // BUT for flexibility, let's just use the raw data if we can't find the key.
+          uniqueHash = qrData;
+          print('⚠️ QR Code (JSON without uniqueHash): $qrData');
+        }
+      } catch (e) {
+        // 2. If not JSON, assume the raw string IS the hash
+        uniqueHash = qrData;
+        print('📱 QR Code (Raw): $uniqueHash');
+      }
 
-      // Extract data from QR code
-      // We only need uniqueHash for the API, but we can log others
-      final String uniqueHash = qrCodeData['uniqueHash'];
-
-      // Show processing dialog
+      // 3. Show processing dialog
       if (mounted) {
         showDialog(
           context: context,
@@ -147,7 +173,7 @@ class _ScannerScreenState extends State<ScannerScreen>
         );
       }
 
-      // Submit attendance to backend
+      // 4. Submit attendance
       final result = await _submitAttendance(
         uniqueHash: uniqueHash,
         studentId: _studentId!,
@@ -168,11 +194,11 @@ class _ScannerScreenState extends State<ScannerScreen>
       print('❌ Error processing QR code: $e');
 
       if (mounted) {
-        Navigator.of(context).pop(); // Close processing dialog if open
-        _showErrorDialog('Invalid QR code format');
+        Navigator.of(context).pop();
+        _showErrorDialog('An error occurred: $e');
       }
     } finally {
-      // Reset after 3 seconds to allow another scan
+      // Reset after delay
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) {
           setState(() {
@@ -322,8 +348,21 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
+  // Debounce and Throttle variables
+  DateTime? _lastScanTime;
+  DateTime? _lastErrorTime;
+  static const Duration _scanDebounce = Duration(seconds: 2);
+  static const Duration _errorThrottle = Duration(seconds: 2);
+
   @override
   Widget build(BuildContext context) {
+    // Calculate scan window centered on screen
+    final scanWindow = Rect.fromCenter(
+      center: MediaQuery.of(context).size.center(Offset.zero),
+      width: 280,
+      height: 280,
+    );
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -331,7 +370,8 @@ class _ScannerScreenState extends State<ScannerScreen>
           // Camera view with improved clarity
           MobileScanner(
             controller: cameraController,
-            fit: BoxFit.cover, // Ensure camera fills the screen properly
+            scanWindow: scanWindow, // Restrict scanning to this window
+            fit: BoxFit.cover,
             onDetect: (capture) {
               final List<Barcode> barcodes = capture.barcodes;
               if (barcodes.isNotEmpty) {
@@ -426,22 +466,6 @@ class _ScannerScreenState extends State<ScannerScreen>
           ),
         ],
       ),
-      floatingActionButton: kDebugMode
-          ? FloatingActionButton(
-              onPressed: () {
-                _handleQRCodeScanned(
-                  jsonEncode({
-                    'scheduleId': 1,
-                    'sectionId': 1,
-                    'actualRoomId': 1,
-                    'uniqueHash':
-                        'debug-hash-${DateTime.now().millisecondsSinceEpoch}',
-                  }),
-                );
-              },
-              child: const Icon(Icons.bug_report),
-            )
-          : null,
     );
   }
 

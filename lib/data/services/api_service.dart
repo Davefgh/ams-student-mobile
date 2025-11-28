@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+
 import 'package:http/http.dart' as http;
 import '../models/login_request.dart';
 import '../models/login_response.dart';
@@ -25,24 +24,7 @@ class ApiService {
   static const int serverPort = 8080; // HTTP port (8081 for HTTPS)
 
   static String get baseUrl {
-    final protocol = useHttps ? 'https' : 'http';
-    final port = serverPort;
-
-    if (kIsWeb) {
-      // Web platform - use localhost
-      return '$protocol://localhost:$port';
-    } else if (Platform.isAndroid) {
-      // Android: Use local network IP for physical devices
-      // For emulator, change this to: return '$protocol://10.0.2.2:$port';
-      return '$protocol://$localNetworkIp:$port';
-    } else if (Platform.isIOS) {
-      // iOS Simulator: Use localhost
-      // Physical device: Use local network IP
-      return '$protocol://localhost:$port';
-    } else {
-      // Default for other platforms
-      return '$protocol://localhost:$port';
-    }
+    return 'http://attendance.eba-8g72z7wh.ap-southeast-1.elasticbeanstalk.com';
   }
 
   final StorageService _storageService = StorageService();
@@ -396,6 +378,102 @@ class ApiService {
     } catch (e) {
       print('💥 Error in scanQrCode: $e');
       return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  /// Get Scan History by Student ID
+  Future<Map<String, dynamic>> getScanHistoryByStudent({
+    required int studentId,
+    int pageNumber = 1,
+    int pageSize = 50,
+  }) async {
+    try {
+      final token = await _storageService.getAccessToken();
+
+      if (token == null) {
+        return {
+          'success': false,
+          'error': 'Not authenticated. Please login again.',
+        };
+      }
+
+      final url = Uri.parse(
+        '$baseUrl/api/QrCode/$studentId/scan-history?pageNumber=$pageNumber&pageSize=$pageSize',
+      );
+      print('🌐 Fetching scan history from: $url');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      print('📊 Scan History Response Status: ${response.statusCode}');
+      print('📝 Scan History Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {'success': true, 'data': data};
+      } else {
+        return {
+          'success': false,
+          'error': 'Failed to load scan history: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('💥 Error in getScanHistoryByStudent: $e');
+      return {'success': false, 'error': 'Error: $e'};
+    }
+  }
+
+  /// Get Scan History by QR Hash
+  Future<Map<String, dynamic>> getScanHistoryByHash({
+    required String qrHash,
+    int pageNumber = 1,
+    int pageSize = 50,
+  }) async {
+    try {
+      final token = await _storageService.getAccessToken();
+
+      if (token == null) {
+        return {
+          'success': false,
+          'error': 'Not authenticated. Please login again.',
+        };
+      }
+
+      final url = Uri.parse(
+        '$baseUrl/api/QrCode/hash/$qrHash/scan-history?pageNumber=$pageNumber&pageSize=$pageSize',
+      );
+      print('🌐 Fetching scan history by hash from: $url');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      print('📊 Scan History Hash Response Status: ${response.statusCode}');
+      print('📝 Scan History Hash Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {'success': true, 'data': data};
+      } else {
+        return {
+          'success': false,
+          'error': 'Failed to load scan history: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('💥 Error in getScanHistoryByHash: $e');
+      return {'success': false, 'error': 'Error: $e'};
     }
   }
 }
