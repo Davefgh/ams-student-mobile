@@ -23,8 +23,10 @@ class ApiService {
       false; // Use HTTP for development (avoids self-signed cert issues)
   static const int serverPort = 8080; // HTTP port (8081 for HTTPS)
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
   static String get baseUrl {
-    return 'http://attendance.eba-8g72z7wh.ap-southeast-1.elasticbeanstalk.com';
+    return dotenv.env['API_URL'] ?? 'http://localhost:8080';
   }
 
   final StorageService _storageService = StorageService();

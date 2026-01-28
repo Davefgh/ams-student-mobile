@@ -1,6 +1,6 @@
 name: ams_student
 description: "Attendance Monitoring System - Student App"
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -13,28 +13,29 @@ dependencies:
 
   # UI
   cupertino_icons: ^1.0.8
-  
+
   # QR Scanner
   mobile_scanner: ^5.2.3
-  
+
   # Permissions
   permission_handler: ^11.3.1
-  
+
   # Notifications
   flutter_local_notifications: ^18.0.1
-  
+
   # Date/Time formatting
   intl: ^0.19.0
-  
+
   # State Management
   provider: ^6.1.1
-  
+
   # HTTP requests
   http: ^1.2.0
-  
+
   # Local storage
   shared_preferences: ^2.2.2
   shimmer: ^3.0.0
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -43,6 +44,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+
   assets:
+    - .env
     - assets/images/
