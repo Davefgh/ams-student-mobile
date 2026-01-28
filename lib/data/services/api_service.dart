@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:http/http.dart' as http;
 import '../models/login_request.dart';
@@ -22,8 +23,6 @@ class ApiService {
   static const bool useHttps =
       false; // Use HTTP for development (avoids self-signed cert issues)
   static const int serverPort = 8080; // HTTP port (8081 for HTTPS)
-
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
   static String get baseUrl {
     return dotenv.env['API_URL'] ?? 'http://localhost:8080';
